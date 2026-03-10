@@ -1,6 +1,5 @@
-import { Controller, Post, Body, Res, Logger } from "@nestjs/common";
+import { Controller, Post, Body, Res, Logger, Inject } from "@nestjs/common";
 import { Response } from "express";
-import { Inject } from "@nestjs/common";
 import { IGraphService } from "@flutchai/flutch-sdk";
 import { EngineService } from "./engine.service";
 import { AgentStreamDto } from "./engine.dto";
@@ -8,8 +7,8 @@ import { AgentStreamDto } from "./engine.dto";
 /**
  * Agent Engine controller.
  *
- * POST /agent/stream  — accepts agentId + userId + input,
- *                       resolves config internally, streams response.
+ * POST /agent/stream    — accepts agentId + userId + input, streams SSE response.
+ * POST /agent/generate  — accepts agentId + userId + input, returns sync response.
  *
  * The original POST /stream from SDK stays untouched (backward compatibility).
  */
@@ -55,7 +54,12 @@ export class EngineController {
 
   @Post("generate")
   async generateAnswer(@Body() dto: AgentStreamDto) {
-    const payload = await this.engineService.buildPayload(dto);
-    return this.graphService.generateAnswer(payload);
+    try {
+      const payload = await this.engineService.buildPayload(dto);
+      return await this.graphService.generateAnswer(payload);
+    } catch (error) {
+      this.logger.error(`Agent generate failed: ${error.message}`);
+      throw error;
+    }
   }
 }

@@ -1,5 +1,5 @@
-import { Injectable, Inject, Logger } from "@nestjs/common";
-import { IGraphService, IGraphRequestPayload } from "@flutchai/flutch-sdk";
+import { Injectable, Logger } from "@nestjs/common";
+import { IGraphRequestPayload } from "@flutchai/flutch-sdk";
 import { AgentConfigService } from "../config/agent-config.service";
 import { AgentStreamDto } from "./engine.dto";
 import { v4 as uuidv4 } from "uuid";
@@ -8,11 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 export class EngineService {
   private readonly logger = new Logger(EngineService.name);
 
-  constructor(
-    @Inject("GRAPH_SERVICE")
-    private readonly graphService: IGraphService,
-    private readonly agentConfigService: AgentConfigService
-  ) {}
+  constructor(private readonly agentConfigService: AgentConfigService) {}
 
   async buildPayload(dto: AgentStreamDto): Promise<IGraphRequestPayload> {
     const { agentId, userId, input, requestId, metadata } = dto;

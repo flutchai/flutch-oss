@@ -7,11 +7,11 @@ import * as path from "path";
 import { AgentConfig, ResolvedAgentContext } from "./agent-config.interface";
 
 /**
- * Resolves agent configuration either from local YAML (standalone mode)
+ * Resolves agent configuration either from local agents.json (standalone mode)
  * or from Flutch Platform (connected mode).
  *
  * Mode is determined by CONFIG_MODE env variable:
- *   - "local"     — reads from agents.yml (default)
+ *   - "local"     — reads from agents.json (default)
  *   - "platform"  — fetches from API_URL
  */
 @Injectable()
@@ -24,7 +24,11 @@ export class AgentConfigService {
     private readonly configService: ConfigService,
     private readonly httpService: HttpService
   ) {
-    this.mode = (this.configService.get<string>("CONFIG_MODE") as any) || "local";
+    const raw = this.configService.get<string>("CONFIG_MODE") ?? "local";
+    if (raw !== "local" && raw !== "platform") {
+      throw new Error(`Invalid CONFIG_MODE="${raw}". Valid values are "local" and "platform".`);
+    }
+    this.mode = raw;
     this.logger.log(`Config mode: ${this.mode}`);
 
     if (this.mode === "local") {
@@ -50,7 +54,7 @@ export class AgentConfigService {
   private getFromLocal(agentId: string): AgentConfig {
     const config = this.localConfigs[agentId];
     if (!config) {
-      throw new NotFoundException(`Agent "${agentId}" not found in agents.yml`);
+      throw new NotFoundException(`Agent "${agentId}" not found in agents.json`);
     }
     return config;
   }
@@ -73,35 +77,19 @@ export class AgentConfigService {
   }
 
   private loadLocalConfigs(): void {
-    const configPath = path.resolve(process.cwd(), "agents.yml");
+    const configPath = path.resolve(process.cwd(), "agents.json");
 
     if (!fs.existsSync(configPath)) {
-      this.logger.warn("agents.yml not found — no local agents configured");
+      this.logger.warn("agents.json not found — no local agents configured");
       return;
     }
 
     try {
-      // Simple YAML parser for flat structure — avoids extra dependency
       const content = fs.readFileSync(configPath, "utf-8");
-      this.localConfigs = this.parseAgentsYaml(content);
-      this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.yml`);
+      this.localConfigs = JSON.parse(content);
+      this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
     } catch (error) {
-      this.logger.error(`Failed to load agents.yml: ${error.message}`);
+      this.logger.error(`Failed to load agents.json: ${error.message}`);
     }
-  }
-
-  private parseAgentsYaml(_content: string): Record<string, AgentConfig> {
-    // Use JSON-based config if yaml library not available
-    // For production, swap this with `js-yaml` or `yaml` package
-    try {
-      // Try to load agents.json as fallback
-      const jsonPath = path.resolve(process.cwd(), "agents.json");
-      if (fs.existsSync(jsonPath)) {
-        return JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
-      }
-    } catch {
-      // ignore
-    }
-    return {};
   }
 }

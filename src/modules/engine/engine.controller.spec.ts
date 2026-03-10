@@ -154,5 +154,15 @@ describe("EngineController", () => {
       const result = await controller.generateAnswer(mockDto);
       expect(result).toEqual({ answer: "final answer" });
     });
+
+    it("should rethrow error from graphService.generateAnswer", async () => {
+      graphService.generateAnswer.mockRejectedValue(new Error("graph error"));
+      await expect(controller.generateAnswer(mockDto)).rejects.toThrow("graph error");
+    });
+
+    it("should rethrow error from buildPayload", async () => {
+      (engineService.buildPayload as jest.Mock).mockRejectedValue(new Error("agent not found"));
+      await expect(controller.generateAnswer(mockDto)).rejects.toThrow("agent not found");
+    });
   });
 });

@@ -10,7 +10,6 @@ export interface ModelSettings {
   provider?: "openai" | "anthropic";
   temperature?: number;
   maxTokens?: number;
-  systemPrompt?: string;
 }
 
 /**

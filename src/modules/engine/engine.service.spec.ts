@@ -19,10 +19,6 @@ describe("EngineService", () => {
       providers: [
         EngineService,
         {
-          provide: "GRAPH_SERVICE",
-          useValue: { stream: jest.fn(), invoke: jest.fn() },
-        },
-        {
           provide: AgentConfigService,
           useValue: {
             resolve: jest.fn().mockResolvedValue(mockResolvedContext),
