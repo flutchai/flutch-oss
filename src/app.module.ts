@@ -4,6 +4,7 @@ import { ConfigModule } from "@nestjs/config";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 import { LoggingInterceptor } from "./logging.interceptor";
 import { AgentV1Builder } from "./graph";
+import { EngineModule } from "./modules/engine/engine.module";
 import {
   BaseGraphServiceController,
   BuilderRegistryService,
@@ -37,6 +38,7 @@ const logger = new Logger("AppModule");
       ],
       mongodb: {},
     }),
+    EngineModule,
   ],
   controllers: [BaseGraphServiceController],
   providers: [
