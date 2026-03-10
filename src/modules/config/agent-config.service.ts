@@ -84,12 +84,8 @@ export class AgentConfigService {
       return;
     }
 
-    try {
-      const content = fs.readFileSync(configPath, "utf-8");
-      this.localConfigs = JSON.parse(content);
-      this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
-    } catch (error) {
-      this.logger.error(`Failed to load agents.json: ${error.message}`);
-    }
+    const content = fs.readFileSync(configPath, "utf-8");
+    this.localConfigs = JSON.parse(content);
+    this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
   }
 }

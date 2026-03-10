@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigModule } from "@nestjs/config";
 import { HttpModule } from "@nestjs/axios";
@@ -108,6 +109,25 @@ describe("AgentConfigService", () => {
       jest.spyOn(httpService, "get").mockReturnValue(throwError(() => new Error("Network error")));
 
       await expect(service.resolve("roofing-v1", "user-1")).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("loadLocalConfigs error handling", () => {
+    it("should throw when agents.json contains invalid JSON", async () => {
+      const fsMock = jest.spyOn(fs, "existsSync").mockReturnValue(true);
+      const readMock = jest.spyOn(fs, "readFileSync").mockReturnValue("{ invalid json }" as any);
+
+      await expect(
+        Test.createTestingModule({
+          imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), HttpModule],
+          providers: [AgentConfigService],
+        })
+          .compile()
+          .then(m => m.get<AgentConfigService>(AgentConfigService))
+      ).rejects.toThrow(SyntaxError);
+
+      fsMock.mockRestore();
+      readMock.mockRestore();
     });
   });
 
