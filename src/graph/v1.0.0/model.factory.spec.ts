@@ -20,7 +20,9 @@ describe("createModel", () => {
 
   it("should create ChatOpenAI for gpt models", () => {
     createModel({ model: "gpt-4o-mini" });
-    expect(MockChatOpenAI).toHaveBeenCalledWith(expect.objectContaining({ modelName: "gpt-4o-mini" }));
+    expect(MockChatOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({ modelName: "gpt-4o-mini" })
+    );
   });
 
   it("should create ChatAnthropic for claude models", () => {
@@ -32,7 +34,9 @@ describe("createModel", () => {
 
   it("should use explicit provider over inferred one", () => {
     createModel({ model: "gpt-4o", provider: "anthropic" });
-    expect(MockChatAnthropic).toHaveBeenCalledWith(expect.objectContaining({ modelName: "gpt-4o" }));
+    expect(MockChatAnthropic).toHaveBeenCalledWith(
+      expect.objectContaining({ modelName: "gpt-4o" })
+    );
   });
 
   it("should apply custom temperature", () => {
