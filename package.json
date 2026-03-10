@@ -1,6 +1,6 @@
 {
   "name": "@flutchai/flutch-oss",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Flutch OSS — standalone agent engine for on-premise deployment",
   "main": "dist/index.js",
   "scripts": {
@@ -18,8 +18,10 @@
   },
   "dependencies": {
     "@flutchai/flutch-sdk": "^0.2.7",
+    "@langchain/anthropic": "^0.3.0",
     "@langchain/core": "^1.1.30",
     "@langchain/langgraph": "^1.2.0",
+    "@langchain/openai": "^1.0.0",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",

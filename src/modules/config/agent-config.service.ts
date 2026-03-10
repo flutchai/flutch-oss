@@ -34,9 +34,7 @@ export class AgentConfigService {
 
   async resolve(agentId: string, userId: string): Promise<ResolvedAgentContext> {
     const agentConfig =
-      this.mode === "platform"
-        ? await this.fetchFromPlatform(agentId)
-        : this.getFromLocal(agentId);
+      this.mode === "platform" ? await this.fetchFromPlatform(agentId) : this.getFromLocal(agentId);
 
     const threadId = `${agentId}:${userId}`;
 
@@ -92,7 +90,7 @@ export class AgentConfigService {
     }
   }
 
-  private parseAgentsYaml(content: string): Record<string, AgentConfig> {
+  private parseAgentsYaml(_content: string): Record<string, AgentConfig> {
     // Use JSON-based config if yaml library not available
     // For production, swap this with `js-yaml` or `yaml` package
     try {

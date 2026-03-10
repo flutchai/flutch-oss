@@ -33,7 +33,9 @@ export class EngineController {
     try {
       const payload = await this.engineService.buildPayload(dto);
 
-      this.logger.debug(`Starting agent stream: agentId=${dto.agentId} requestId=${payload.requestId}`);
+      this.logger.debug(
+        `Starting agent stream: agentId=${dto.agentId} requestId=${payload.requestId}`
+      );
 
       const result = await this.graphService.streamAnswer(payload, (chunk: string) => {
         res.write(`event: stream_event\n`);

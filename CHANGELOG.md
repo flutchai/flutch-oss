@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-10
+
+### Added
+- `EngineController` — new `POST /agent/stream` and `POST /agent/generate` endpoints that accept `{agentId, userId, input}` instead of raw graph payload
+- `EngineService.buildPayload()` — assembles full `IGraphRequestPayload` from resolved agent context
+- `AgentConfigService` — resolves agent configuration from local `agents.json` (standalone mode) or Flutch Platform API (connected mode), controlled by `CONFIG_MODE` env variable
+- `ModelFactory` (`createModel`) — creates ChatOpenAI or ChatAnthropic instance from `graphSettings`, with automatic provider inference from model name
+- `@langchain/openai` and `@langchain/anthropic` as direct dependencies (previously transitive only)
+- `agents.example.json` — example agent configuration file for standalone mode
+- Full test coverage for `EngineService`, `AgentConfigService`, `ModelFactory`, and `AgentV1Builder`
+
+### Changed
+- `AgentV1Builder.buildGraph()` now uses `ModelFactory` and reads `graphSettings` from payload (model, systemPrompt, temperature, maxTokens)
+- README: updated configuration section with new env variables and `agents.json` format
+
 ## [0.1.0] - 2025-03-10
 
 ### Added

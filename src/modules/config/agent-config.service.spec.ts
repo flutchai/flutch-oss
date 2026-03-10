@@ -9,10 +9,7 @@ describe("AgentConfigService", () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
-        HttpModule,
-      ],
+      imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), HttpModule],
       providers: [AgentConfigService],
     }).compile();
 
@@ -24,9 +21,7 @@ describe("AgentConfigService", () => {
   });
 
   it("should throw NotFoundException for unknown agentId in local mode", async () => {
-    await expect(service.resolve("unknown-agent", "user-1")).rejects.toThrow(
-      NotFoundException
-    );
+    await expect(service.resolve("unknown-agent", "user-1")).rejects.toThrow(NotFoundException);
   });
 
   it("should return resolved context with correct threadId format", async () => {
