@@ -33,14 +33,13 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
   async buildGraph(_payload?: IGraphRequestPayload): Promise<any> {
     this.logger.debug("Building agent graph v1.0.0");
 
-    const workflow = new StateGraph(AgentState)
-      .addNode("agent", async (state) => {
-        // TODO: implement agent logic
-        const lastMessage = state.messages[state.messages.length - 1];
-        return {
-          messages: [new AIMessage(`Echo: ${lastMessage.content}`)],
-        };
-      });
+    const workflow = new StateGraph(AgentState).addNode("agent", async state => {
+      // TODO: implement agent logic
+      const lastMessage = state.messages[state.messages.length - 1];
+      return {
+        messages: [new AIMessage(`Echo: ${lastMessage.content}`)],
+      };
+    });
 
     workflow.addEdge(START, "agent");
     workflow.addEdge("agent", END);
