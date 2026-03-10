@@ -1,0 +1,10 @@
+{
+  "my-agent": {
+    "agentId": "my-agent",
+    "graphType": "flutch.agent",
+    "graphSettings": {
+      "systemPrompt": "You are a helpful assistant.",
+      "model": "gpt-4o-mini"
+    }
+  }
+}

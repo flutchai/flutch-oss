@@ -7,3 +7,4 @@ dist/
 .yarn/install-state.gz
 *.log
 coverage/
+agents.json

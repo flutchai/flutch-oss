@@ -61,15 +61,67 @@ yarn dev
 
 ## Configuration
 
-See `.env.example` for all available variables.
+### Environment variables
 
-| Variable | Description |
-|----------|-------------|
-| `MONGODB_URI` | MongoDB connection string |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `API_URL` | Flutch Platform URL (connected mode) |
-| `INTERNAL_API_TOKEN` | Flutch Platform auth token (connected mode) |
+Copy `.env.example` to `.env` and fill in the values.
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENAI_API_KEY` | * | — | OpenAI API key (required for GPT models) |
+| `ANTHROPIC_API_KEY` | * | — | Anthropic API key (required for Claude models) |
+| `MONGODB_URI` | No | in-memory | MongoDB connection string for conversation checkpoints |
+| `CONFIG_MODE` | No | `local` | Agent config source: `local` (agents.json) or `platform` (Flutch API) |
+| `API_URL` | connected mode | — | Flutch Platform base URL (e.g. `https://api.flutch.ai`) |
+| `INTERNAL_API_TOKEN` | connected mode | — | Bearer token for Flutch Platform auth |
+| `PORT` | No | `3000` | HTTP port the engine listens on |
+
+\* At least one LLM key is required, depending on the models you configure.
+
+### Agent configuration (agents.json)
+
+In `local` mode (default), the engine reads agent configs from `agents.json` in the working directory.
+
+Copy the example and edit it:
+
+```bash
+cp agents.example.json agents.json
+```
+
+File format — a flat map of `agentId → config`:
+
+```json
+{
+  "my-agent": {
+    "agentId": "my-agent",
+    "graphType": "flutch.agent",
+    "graphSettings": {
+      "model": "gpt-4o-mini",
+      "systemPrompt": "You are a helpful assistant.",
+      "temperature": 0.7,
+      "maxTokens": 2048
+    }
+  },
+  "claude-agent": {
+    "agentId": "claude-agent",
+    "graphType": "flutch.agent",
+    "graphSettings": {
+      "model": "claude-3-5-sonnet-20241022",
+      "systemPrompt": "You are a concise assistant.",
+      "temperature": 0.5
+    }
+  }
+}
+```
+
+**graphSettings fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model` | string | Yes | Model name, e.g. `gpt-4o-mini`, `claude-3-5-sonnet-20241022` |
+| `provider` | `openai` \| `anthropic` | No | Inferred from model name if omitted |
+| `systemPrompt` | string | No | System prompt prepended to every conversation |
+| `temperature` | number | No | Sampling temperature (default: `0.7`) |
+| `maxTokens` | number | No | Max output tokens (default: `2048`) |
 
 ## Customizing the agent graph
 
