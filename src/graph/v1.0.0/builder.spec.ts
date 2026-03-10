@@ -39,9 +39,9 @@ describe("AgentV1Builder", () => {
     expect(modelFactory.createModel).toHaveBeenCalledWith({ model: "gpt-4o-mini" });
   });
 
-  it("should build graph without payload using defaults", async () => {
+  it("should apply default model gpt-4o-mini when model is absent", async () => {
     const graph = await builder.buildGraph();
     expect(graph).toBeDefined();
-    expect(modelFactory.createModel).toHaveBeenCalledWith({});
+    expect(modelFactory.createModel).toHaveBeenCalledWith({ model: "gpt-4o-mini" });
   });
 });

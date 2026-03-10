@@ -24,13 +24,13 @@ export class EngineController {
 
   @Post("stream")
   async streamAnswer(@Body() dto: AgentStreamDto, @Res() res: Response): Promise<void> {
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Transfer-Encoding", "chunked");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-
     try {
       const payload = await this.engineService.buildPayload(dto);
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Transfer-Encoding", "chunked");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
 
       this.logger.debug(
         `Starting agent stream: agentId=${dto.agentId} requestId=${payload.requestId}`
@@ -46,9 +46,13 @@ export class EngineController {
       res.end();
     } catch (error) {
       this.logger.error(`Agent stream failed: ${error.message}`);
-      res.write(`event: error\n`);
-      res.write(`data: ${JSON.stringify({ message: error.message })}\n\n`);
-      res.end();
+      if (res.headersSent) {
+        res.write(`event: error\n`);
+        res.write(`data: ${JSON.stringify({ message: error.message })}\n\n`);
+        res.end();
+      } else {
+        res.status(error.status ?? 500).json({ message: error.message });
+      }
     }
   }
 

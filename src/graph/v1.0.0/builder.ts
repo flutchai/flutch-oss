@@ -28,10 +28,11 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
   async buildGraph(payload?: IGraphRequestPayload): Promise<any> {
     const graphSettings = payload?.config?.configurable?.graphSettings ?? {};
     const systemPrompt: string | undefined = graphSettings.systemPrompt;
+    const modelSettings = { ...graphSettings, model: graphSettings.model ?? "gpt-4o-mini" };
 
-    this.logger.debug(`Building agent graph v1.0.0 model=${graphSettings.model ?? "gpt-4o-mini"}`);
+    this.logger.debug(`Building agent graph v1.0.0 model=${modelSettings.model}`);
 
-    const model = createModel(graphSettings);
+    const model = createModel(modelSettings);
 
     const generateNode = async (state: typeof AgentState.State) => {
       const messages: BaseMessage[] = [];

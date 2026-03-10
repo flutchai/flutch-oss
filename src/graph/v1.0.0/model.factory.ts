@@ -30,6 +30,7 @@ export function createModel(settings: ModelSettings): BaseChatModel {
         temperature,
         maxTokens,
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+        streaming: true,
       }) as unknown as BaseChatModel;
 
     case "openai":

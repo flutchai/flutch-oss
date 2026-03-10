@@ -31,6 +31,13 @@ export class AgentConfigService {
     this.mode = raw;
     this.logger.log(`Config mode: ${this.mode}`);
 
+    if (this.mode === "platform") {
+      const apiUrl = this.configService.get<string>("API_URL");
+      const token = this.configService.get<string>("INTERNAL_API_TOKEN");
+      if (!apiUrl) throw new Error("API_URL is required when CONFIG_MODE=platform");
+      if (!token) throw new Error("INTERNAL_API_TOKEN is required when CONFIG_MODE=platform");
+    }
+
     if (this.mode === "local") {
       this.loadLocalConfigs();
     }

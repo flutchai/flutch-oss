@@ -131,6 +131,31 @@ describe("AgentConfigService", () => {
     });
   });
 
+  describe("platform mode startup validation", () => {
+    async function buildService(env: Record<string, string>) {
+      const module = await Test.createTestingModule({
+        imports: [
+          ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => env] }),
+          HttpModule,
+        ],
+        providers: [AgentConfigService],
+      }).compile();
+      return module.get<AgentConfigService>(AgentConfigService);
+    }
+
+    it("should throw when API_URL is missing in platform mode", async () => {
+      await expect(
+        buildService({ CONFIG_MODE: "platform", INTERNAL_API_TOKEN: "tok" })
+      ).rejects.toThrow("API_URL is required when CONFIG_MODE=platform");
+    });
+
+    it("should throw when INTERNAL_API_TOKEN is missing in platform mode", async () => {
+      await expect(
+        buildService({ CONFIG_MODE: "platform", API_URL: "https://api.flutch.ai" })
+      ).rejects.toThrow("INTERNAL_API_TOKEN is required when CONFIG_MODE=platform");
+    });
+  });
+
   describe("invalid CONFIG_MODE", () => {
     it("should throw on invalid CONFIG_MODE value", async () => {
       await expect(

@@ -23,11 +23,16 @@ const mockDto: AgentStreamDto = {
 };
 
 function mockResponse() {
-  return {
+  const res: any = {
     setHeader: jest.fn(),
     write: jest.fn(),
     end: jest.fn(),
-  } as any;
+    headersSent: false,
+    status: jest.fn(),
+    json: jest.fn(),
+  };
+  res.status.mockReturnValue(res);
+  return res;
 }
 
 describe("EngineController", () => {
@@ -114,8 +119,9 @@ describe("EngineController", () => {
       expect(res.end).toHaveBeenCalled();
     });
 
-    it("should write error event and end response on failure", async () => {
+    it("should write SSE error event when graphService throws (headers already sent)", async () => {
       const res = mockResponse();
+      res.headersSent = true;
       graphService.streamAnswer.mockRejectedValue(new Error("graph exploded"));
 
       await controller.streamAnswer(mockDto, res);
@@ -127,14 +133,27 @@ describe("EngineController", () => {
       expect(res.end).toHaveBeenCalled();
     });
 
-    it("should still end response when buildPayload throws", async () => {
+    it("should return HTTP error when buildPayload throws (headers not yet sent)", async () => {
       const res = mockResponse();
-      (engineService.buildPayload as jest.Mock).mockRejectedValue(new Error("agent not found"));
+      const err: any = new Error("agent not found");
+      err.status = 404;
+      (engineService.buildPayload as jest.Mock).mockRejectedValue(err);
 
       await controller.streamAnswer(mockDto, res);
 
-      expect(res.write).toHaveBeenCalledWith("event: error\n");
-      expect(res.end).toHaveBeenCalled();
+      expect(res.setHeader).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ message: "agent not found" });
+    });
+
+    it("should return HTTP 500 when buildPayload throws without status code", async () => {
+      const res = mockResponse();
+      (engineService.buildPayload as jest.Mock).mockRejectedValue(new Error("unexpected"));
+
+      await controller.streamAnswer(mockDto, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ message: "unexpected" });
     });
   });
 
