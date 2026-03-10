@@ -1,0 +1,13 @@
+{
+  "graphName": "flutch.agent",
+  "graphVersion": "1.0.0",
+  "description": "Flutch OSS generic agent engine",
+  "category": "agent",
+  "visibility": "public",
+  "ui": {
+    "enabled": false
+  },
+  "versioning": {
+    "strategy": "latest"
+  }
+}

@@ -1,0 +1,60 @@
+services:
+  # Flutch OSS agent engine
+  engine:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGO_DB_NAME=${MONGO_DB_NAME:-flutch-oss}
+      - API_URL=${API_URL}
+      - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - mongodb
+      - ragflow
+    restart: unless-stopped
+
+  # MongoDB for graph checkpoints
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  # Ragflow for knowledge base
+  ragflow:
+    image: infiniflow/ragflow:latest
+    ports:
+      - "9380:9380"
+    volumes:
+      - ragflow_data:/ragflow/data
+    restart: unless-stopped
+
+  # Log collector — sends logs to Loki or local file
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log:ro
+      - ./config/promtail.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+
+  # Metrics
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  ragflow_data:
+  prometheus_data:

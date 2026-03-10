@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'flutch-engine'
+    static_configs:
+      - targets: ['engine:3000']
+    metrics_path: '/metrics'
