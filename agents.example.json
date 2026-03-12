@@ -1,10 +1,17 @@
 {
-  "my-agent": {
-    "agentId": "my-agent",
+  "roofing-agent": {
     "graphType": "flutch.agent",
     "graphSettings": {
-      "systemPrompt": "You are a helpful assistant.",
-      "model": "gpt-4o-mini"
+      "model": "gpt-4o-mini",
+      "systemPrompt": "You are a roofing expert assistant. Help customers with roofing questions, material selection, and cost estimation."
+    },
+    "platforms": {
+      "telegram": {
+        "botToken": "YOUR_TELEGRAM_BOT_TOKEN"
+      },
+      "widget": {
+        "widgetKey": "wk_roofing_abc123"
+      }
     }
   }
 }
