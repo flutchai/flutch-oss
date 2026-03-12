@@ -10,6 +10,10 @@ const AgentState = Annotation.Root({
     reducer: (x, y) => x.concat(y),
     default: () => [],
   }),
+  text: Annotation<string>({
+    reducer: (_x, y) => y,
+    default: () => "",
+  }),
 });
 
 /**
@@ -49,7 +53,8 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
       messages.push(...state.messages);
 
       const response = await model.invoke(messages);
-      return { messages: [response] };
+      const text = typeof response.content === "string" ? response.content : "";
+      return { messages: [response], text };
     };
 
     const workflow = new StateGraph(AgentState).addNode("generate", generateNode);

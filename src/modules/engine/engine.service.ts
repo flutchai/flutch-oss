@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IGraphRequestPayload } from "@flutchai/flutch-sdk";
+import { HumanMessage } from "@langchain/core/messages";
 import { AgentConfigService } from "../config/agent-config.service";
 import { AgentStreamDto } from "./engine.dto";
 import { v4 as uuidv4 } from "uuid";
@@ -17,9 +18,12 @@ export class EngineService {
 
     this.logger.debug(`Resolved context for agent "${agentId}": threadId=${context.threadId}`);
 
+    const graphInput =
+      typeof input === "string" ? { messages: [new HumanMessage(input)] } : input;
+
     return {
       requestId: requestId ?? uuidv4(),
-      input,
+      input: graphInput,
       config: {
         configurable: {
           thread_id: context.threadId,
@@ -28,7 +32,7 @@ export class EngineService {
             userId: context.userId,
             threadId: context.threadId,
           },
-          graphSettings: context.graphSettings,
+          graphSettings: { ...context.graphSettings, graphType: context.graphType },
           metadata: metadata ?? {},
         },
       },

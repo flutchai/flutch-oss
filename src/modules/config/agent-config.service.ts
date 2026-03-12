@@ -122,7 +122,10 @@ export class AgentConfigService {
     }
 
     const content = fs.readFileSync(configPath, "utf-8");
-    this.localConfigs = JSON.parse(content);
+    const raw = JSON.parse(content);
+    for (const [agentId, cfg] of Object.entries(raw) as [string, any][]) {
+      this.localConfigs[agentId] = { ...cfg, agentId };
+    }
     this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
   }
 }

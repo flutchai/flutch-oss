@@ -1203,8 +1203,10 @@ __metadata:
     "@nestjs/core": "npm:^10.0.0"
     "@nestjs/platform-express": "npm:^10.0.0"
     "@nestjs/schematics": "npm:^10.0.0"
+    "@nestjs/swagger": "npm:^11.2.6"
     "@nestjs/testing": "npm:^10.0.0"
-    "@nestjs/typeorm": "npm:^11.0.0"
+    "@nestjs/typeorm": "npm:^10.0.2"
+    "@types/ioredis-mock": "npm:^8"
     "@types/jest": "npm:^29.5.2"
     "@types/node": "npm:^20.3.1"
     "@types/pg": "npm:^8"
@@ -1216,10 +1218,11 @@ __metadata:
     class-validator: "npm:^0.14.2"
     eslint: "npm:^8.42.0"
     ioredis: "npm:^5.8.2"
+    ioredis-mock: "npm:^8.13.1"
     jest: "npm:^29.5.0"
     pg: "npm:^8.20.0"
     prettier: "npm:^3.0.0"
-    reflect-metadata: "npm:^0.1.13"
+    reflect-metadata: "npm:^0.2.0"
     rxjs: "npm:^7.8.1"
     supertest: "npm:^7.2.2"
     ts-jest: "npm:^29.1.0"
@@ -1303,7 +1306,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ioredis/commands@npm:1.5.1":
+"@ioredis/as-callback@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "@ioredis/as-callback@npm:3.0.0"
+  checksum: 10c0/cbeae0c4a8f8f8ea1987d105056fd595a5a1a781a73dfa3a13ac13027fd1de099af6f3590bd315fd20284efd8597430a7ba3b912570804d158dabbdb2071523b
+  languageName: node
+  linkType: hard
+
+"@ioredis/commands@npm:1.5.1, @ioredis/commands@npm:^1.4.0":
   version: 1.5.1
   resolution: "@ioredis/commands@npm:1.5.1"
   checksum: 10c0/cb8f6d13cff0753e3e7ef001fb895491985d9a623248192538f13bc2fd9bfdfde3c18cf2ba6f20ec8ceaa681b0771070d3a09b82eed044c798bcfef5e3ae54b3
@@ -2052,7 +2062,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/swagger@npm:^11.2.0":
+"@nestjs/swagger@npm:^11.2.0, @nestjs/swagger@npm:^11.2.6":
   version: 11.2.6
   resolution: "@nestjs/swagger@npm:11.2.6"
   dependencies:
@@ -2154,16 +2164,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/typeorm@npm:^11.0.0":
-  version: 11.0.0
-  resolution: "@nestjs/typeorm@npm:11.0.0"
+"@nestjs/typeorm@npm:^10.0.2":
+  version: 10.0.2
+  resolution: "@nestjs/typeorm@npm:10.0.2"
+  dependencies:
+    uuid: "npm:9.0.1"
   peerDependencies:
-    "@nestjs/common": ^10.0.0 || ^11.0.0
-    "@nestjs/core": ^10.0.0 || ^11.0.0
+    "@nestjs/common": ^8.0.0 || ^9.0.0 || ^10.0.0
+    "@nestjs/core": ^8.0.0 || ^9.0.0 || ^10.0.0
     reflect-metadata: ^0.1.13 || ^0.2.0
     rxjs: ^7.2.0
     typeorm: ^0.3.0
-  checksum: 10c0/bdb96fc0d05cb653ffb8d90e44f866c7634fe4065db409e878e06ab1c3ae0333b5629c7590c1f94f2adf39ef7e95422dff34eadb2910f6eb7b6c598bcc65088a
+  checksum: 10c0/0c5a59273cab43c5b7e4da189e6b9792b64309b32a09c7dbd4bcd6bf2e6ac58faeb3ae40067d3fe987ca857841031bf91c90416ae6824e3525e3e990eb5cf852
   languageName: node
   linkType: hard
 
@@ -2925,6 +2937,15 @@ __metadata:
   dependencies:
     "@types/node": "npm:*"
   checksum: 10c0/235d2fc69741448e853333b7c3d1180a966dd2b8972c8cbcd6b2a0c6cd7f8d582ab2b8e58219dbc62cce8f1b40aa317ff78ea2201cdd8249da5025adebed6f0b
+  languageName: node
+  linkType: hard
+
+"@types/ioredis-mock@npm:^8":
+  version: 8.2.7
+  resolution: "@types/ioredis-mock@npm:8.2.7"
+  peerDependencies:
+    ioredis: ">=5"
+  checksum: 10c0/cb3b30815d099f4e4652290618a8dc84aadf101027f3b996b0045bad363e9355b05076477fbec31495faac7aae9463a30a6ae8d1a366702010dbf6acca6af1ae
   languageName: node
   linkType: hard
 
@@ -5259,6 +5280,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fengari-interop@npm:^0.1.3":
+  version: 0.1.4
+  resolution: "fengari-interop@npm:0.1.4"
+  peerDependencies:
+    fengari: ^0.1.0
+  checksum: 10c0/ba8aca9b741b603a7740343b3f99dbd60c4536aab115a8e02caa33030e16e0dd13a0d03f0c31050f7fa1ead7945358040cead48531df41c3b3147e61b50f383c
+  languageName: node
+  linkType: hard
+
+"fengari@npm:^0.1.4":
+  version: 0.1.5
+  resolution: "fengari@npm:0.1.5"
+  dependencies:
+    readline-sync: "npm:^1.4.10"
+    sprintf-js: "npm:^1.1.3"
+    tmp: "npm:^0.2.5"
+  checksum: 10c0/8688c3483e00028b0b09928f71452bb2c8b4db5f7380e0e8dd65619bb4ccb38438557ebdfd977c55a6d3fb5e7601cbac26c62873317320ffd20b59936f464244
+  languageName: node
+  linkType: hard
+
 "fflate@npm:^0.8.2":
   version: 0.8.2
   resolution: "fflate@npm:0.8.2"
@@ -5955,6 +5996,22 @@ __metadata:
     strip-ansi: "npm:^6.0.1"
     wrap-ansi: "npm:^6.2.0"
   checksum: 10c0/c94d5863d4d05aeb1c6acfd30416037da03ecc1d7a9be099faf746000cd17ea134038b46888f5baed7abc0fa8efc1918029db896048d9dfa93610b7c999a1b71
+  languageName: node
+  linkType: hard
+
+"ioredis-mock@npm:^8.13.1":
+  version: 8.13.1
+  resolution: "ioredis-mock@npm:8.13.1"
+  dependencies:
+    "@ioredis/as-callback": "npm:^3.0.0"
+    "@ioredis/commands": "npm:^1.4.0"
+    fengari: "npm:^0.1.4"
+    fengari-interop: "npm:^0.1.3"
+    semver: "npm:^7.7.2"
+  peerDependencies:
+    "@types/ioredis-mock": ^8
+    ioredis: ^5
+  checksum: 10c0/47e17a307301da01a89d041a6d6101828baefd3a1c216a09fe8ff9e1bd7d7239de93544365280f6cda4ad98af1f302e7497f9563f36cb24b528d9c7b3164301f
   languageName: node
   linkType: hard
 
@@ -8237,6 +8294,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"readline-sync@npm:^1.4.10":
+  version: 1.4.10
+  resolution: "readline-sync@npm:1.4.10"
+  checksum: 10c0/0a4d0fe4ad501f8f005a3c9cbf3cc0ae6ca2ced93e9a1c7c46f226bdfcb6ef5d3f437ae7e9d2e1098ee13524a3739c830e4c8dbc7f543a693eecd293e41093a3
+  languageName: node
+  linkType: hard
+
 "redis-errors@npm:^1.0.0, redis-errors@npm:^1.2.0":
   version: 1.2.0
   resolution: "redis-errors@npm:1.2.0"
@@ -8250,13 +8314,6 @@ __metadata:
   dependencies:
     redis-errors: "npm:^1.0.0"
   checksum: 10c0/ee16ac4c7b2a60b1f42a2cdaee22b005bd4453eb2d0588b8a4939718997ae269da717434da5d570fe0b05030466eeb3f902a58cf2e8e1ca058bf6c9c596f632f
-  languageName: node
-  linkType: hard
-
-"reflect-metadata@npm:^0.1.13":
-  version: 0.1.14
-  resolution: "reflect-metadata@npm:0.1.14"
-  checksum: 10c0/3a6190c7f6cb224f26a012d11f9e329360c01c1945e2cbefea23976a8bacf9db6b794aeb5bf18adcb673c448a234fbc06fc41853c00a6c206b30f0777ecf019e
   languageName: node
   linkType: hard
 
@@ -8466,7 +8523,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.3.4, semver@npm:^7.3.5, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.3, semver@npm:^7.7.3":
+"semver@npm:^7.3.4, semver@npm:^7.3.5, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.3, semver@npm:^7.7.2, semver@npm:^7.7.3":
   version: 7.7.4
   resolution: "semver@npm:7.7.4"
   bin:
@@ -8730,6 +8787,13 @@ __metadata:
   version: 4.2.0
   resolution: "split2@npm:4.2.0"
   checksum: 10c0/b292beb8ce9215f8c642bb68be6249c5a4c7f332fc8ecadae7be5cbdf1ea95addc95f0459ef2e7ad9d45fd1064698a097e4eb211c83e772b49bc0ee423e91534
+  languageName: node
+  linkType: hard
+
+"sprintf-js@npm:^1.1.3":
+  version: 1.1.3
+  resolution: "sprintf-js@npm:1.1.3"
+  checksum: 10c0/09270dc4f30d479e666aee820eacd9e464215cdff53848b443964202bf4051490538e5dd1b42e1a65cf7296916ca17640aebf63dae9812749c7542ee5f288dec
   languageName: node
   linkType: hard
 
@@ -9070,6 +9134,13 @@ __metadata:
   dependencies:
     os-tmpdir: "npm:~1.0.2"
   checksum: 10c0/69863947b8c29cabad43fe0ce65cec5bb4b481d15d4b4b21e036b060b3edbf3bc7a5541de1bacb437bb3f7c4538f669752627fdf9b4aaf034cebd172ba373408
+  languageName: node
+  linkType: hard
+
+"tmp@npm:^0.2.5":
+  version: 0.2.5
+  resolution: "tmp@npm:0.2.5"
+  checksum: 10c0/cee5bb7d674bb4ba3ab3f3841c2ca7e46daeb2109eec395c1ec7329a91d52fcb21032b79ac25161a37b2565c4858fefab927af9735926a113ef7bac9091a6e0e
   languageName: node
   linkType: hard
 
@@ -9573,6 +9644,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"uuid@npm:9.0.1, uuid@npm:^9.0.0":
+  version: 9.0.1
+  resolution: "uuid@npm:9.0.1"
+  bin:
+    uuid: dist/bin/uuid
+  checksum: 10c0/1607dd32ac7fc22f2d8f77051e6a64845c9bce5cd3dd8aa0070c074ec73e666a1f63c7b4e0f4bf2bc8b9d59dc85a15e17807446d9d2b17c8485fbc2147b27f9b
+  languageName: node
+  linkType: hard
+
 "uuid@npm:^10.0.0":
   version: 10.0.0
   resolution: "uuid@npm:10.0.0"
@@ -9597,15 +9677,6 @@ __metadata:
   bin:
     uuid: dist-node/bin/uuid
   checksum: 10c0/950e4c18d57fef6c69675344f5700a08af21e26b9eff2bf2180427564297368c538ea11ac9fb2e6528b17fc3966a9fd2c5049361b0b63c7d654f3c550c9b3d67
-  languageName: node
-  linkType: hard
-
-"uuid@npm:^9.0.0":
-  version: 9.0.1
-  resolution: "uuid@npm:9.0.1"
-  bin:
-    uuid: dist/bin/uuid
-  checksum: 10c0/1607dd32ac7fc22f2d8f77051e6a64845c9bce5cd3dd8aa0070c074ec73e666a1f63c7b4e0f4bf2bc8b9d59dc85a15e17807446d9d2b17c8485fbc2147b27f9b
   languageName: node
   linkType: hard
 

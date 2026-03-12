@@ -1,6 +1,7 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { IGraphService, IGraphRequestPayload } from "@flutchai/flutch-sdk";
+import { HumanMessage } from "@langchain/core/messages";
 import { v4 as uuidv4 } from "uuid";
 import { AgentConfigService } from "../../config/agent-config.service";
 import { UserService } from "../user.service";
@@ -63,7 +64,7 @@ export class TelegramConnectorService {
 
     const payload: IGraphRequestPayload = {
       requestId: uuidv4(),
-      input: text,
+      input: { messages: [new HumanMessage(text)] },
       config: {
         configurable: {
           thread_id: thread.id,
@@ -72,7 +73,7 @@ export class TelegramConnectorService {
             userId: user.id,
             threadId: thread.id,
           },
-          graphSettings: context.graphSettings,
+          graphSettings: { ...context.graphSettings, graphType: context.graphType },
           metadata: { platform: "telegram", chatId },
         },
       },
