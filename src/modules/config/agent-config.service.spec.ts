@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { Test, TestingModule } from "@nestjs/testing";
-import { ConfigModule, ConfigService } from "@nestjs/config";
+import { ConfigService } from "@nestjs/config";
 import { HttpModule } from "@nestjs/axios";
 import { HttpService } from "@nestjs/axios";
 import { NotFoundException } from "@nestjs/common";
@@ -250,7 +250,7 @@ describe("AgentConfigService", () => {
 
         expect(getSpy).toHaveBeenCalledWith(
           "https://api.flutch.ai/agents/by-widget-key/wk_roofing_abc123",
-          expect.objectContaining({ headers: { Authorization: "Bearer test-token" } }),
+          expect.objectContaining({ headers: { Authorization: "Bearer test-token" } })
         );
         expect(result.agentId).toBe("roofing-agent");
       });

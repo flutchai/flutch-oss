@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { BadRequestException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException } from "@nestjs/common";
 import { WidgetConnectorService } from "./widget-connector.service";
 import { AgentConfigService } from "../../config/agent-config.service";
 import { UserService } from "../user.service";
@@ -145,13 +145,13 @@ describe("WidgetConnectorService", () => {
 
     it("accepts matching threadId without error", async () => {
       await expect(
-        service.init({ widgetKey: "wk_test", fingerprint: "fp-abc", threadId: "thread-uuid-1" }),
+        service.init({ widgetKey: "wk_test", fingerprint: "fp-abc", threadId: "thread-uuid-1" })
       ).resolves.not.toThrow();
     });
 
     it("throws BadRequestException when threadId does not match", async () => {
       await expect(
-        service.init({ widgetKey: "wk_test", fingerprint: "fp-abc", threadId: "wrong-thread-id" }),
+        service.init({ widgetKey: "wk_test", fingerprint: "fp-abc", threadId: "wrong-thread-id" })
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -184,7 +184,7 @@ describe("WidgetConnectorService", () => {
           "Cache-Control": "no-cache",
           Connection: "keep-alive",
           "X-Accel-Buffering": "no",
-        }),
+        })
       );
       expect(res.flushHeaders).toHaveBeenCalled();
     });
@@ -193,15 +193,9 @@ describe("WidgetConnectorService", () => {
       const res = makeMockRes();
       const req = makeMockReq();
 
-      await service.sendMessage(
-        msgDto({ sessionToken: "invalid-token" }),
-        req as any,
-        res as any,
-      );
+      await service.sendMessage(msgDto({ sessionToken: "invalid-token" }), req as any, res as any);
 
-      expect(res.write).toHaveBeenCalledWith(
-        expect.stringContaining("event: error"),
-      );
+      expect(res.write).toHaveBeenCalledWith(expect.stringContaining("event: error"));
       expect(res.end).toHaveBeenCalled();
     });
 
@@ -213,7 +207,7 @@ describe("WidgetConnectorService", () => {
 
       expect(userService.findOrCreateByIdentity).toHaveBeenCalledWith(
         Platform.WIDGET,
-        TEST_FINGERPRINT,
+        TEST_FINGERPRINT
       );
     });
 
@@ -250,9 +244,7 @@ describe("WidgetConnectorService", () => {
       await service.sendMessage(msgDto(), req as any, res as any);
 
       expect(res.write).toHaveBeenCalledWith("event: partial\ndata: before-disconnect\n\n");
-      expect(res.write).not.toHaveBeenCalledWith(
-        "event: partial\ndata: after-disconnect\n\n",
-      );
+      expect(res.write).not.toHaveBeenCalledWith("event: partial\ndata: after-disconnect\n\n");
     });
 
     it("saves incoming message before calling engine", async () => {
@@ -283,7 +275,7 @@ describe("WidgetConnectorService", () => {
       expect(threadService.saveMessage).toHaveBeenCalledWith(
         "thread-uuid-1",
         "Кровля стоит 500$",
-        MessageDirection.OUTGOING,
+        MessageDirection.OUTGOING
       );
     });
 
@@ -294,7 +286,7 @@ describe("WidgetConnectorService", () => {
       await service.sendMessage(msgDto(), req as any, res as any);
 
       const finalCall = (res.write as jest.Mock).mock.calls.find(([arg]: [string]) =>
-        arg.startsWith("event: final"),
+        arg.startsWith("event: final")
       );
       expect(finalCall).toBeDefined();
     });
