@@ -4,14 +4,10 @@ export class DropThreadsPlatformDefault1741872000000 implements MigrationInterfa
   name = "DropThreadsPlatformDefault1741872000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "threads" ALTER COLUMN "platform" DROP DEFAULT`
-    );
+    await queryRunner.query(`ALTER TABLE "threads" ALTER COLUMN "platform" DROP DEFAULT`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "threads" ALTER COLUMN "platform" SET DEFAULT 'telegram'`
-    );
+    await queryRunner.query(`ALTER TABLE "threads" ALTER COLUMN "platform" SET DEFAULT 'telegram'`);
   }
 }
