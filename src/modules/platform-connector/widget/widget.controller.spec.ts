@@ -67,13 +67,13 @@ describe("WidgetController", () => {
       const req = { on: jest.fn() };
 
       await controller.message(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Привет" },
+        { widgetKey: "wk_test", threadId: "thread-uuid-1", sessionToken: "tok-abc", text: "Привет" },
         req as any,
         res as any
       );
 
       expect(service.sendMessage).toHaveBeenCalledWith(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Привет" },
+        { widgetKey: "wk_test", threadId: "thread-uuid-1", sessionToken: "tok-abc", text: "Привет" },
         req,
         res
       );
@@ -84,7 +84,7 @@ describe("WidgetController", () => {
       const req = { on: jest.fn() };
 
       await controller.message(
-        { widgetKey: "wk_test", threadId: "t1", text: "test" },
+        { widgetKey: "wk_test", threadId: "t1", sessionToken: "tok", text: "test" },
         req as any,
         res as any
       );

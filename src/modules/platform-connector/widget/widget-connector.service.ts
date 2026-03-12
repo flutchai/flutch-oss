@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger, BadRequestException } from "@nestjs/common";
+import { Injectable, Inject, Logger, BadRequestException, UnauthorizedException } from "@nestjs/common";
 import { Response, Request } from "express";
 import { IGraphService, IGraphRequestPayload } from "@flutchai/flutch-sdk";
 import { HumanMessage } from "@langchain/core/messages";
@@ -6,13 +6,16 @@ import { v4 as uuidv4 } from "uuid";
 import { AgentConfigService } from "../../config/agent-config.service";
 import { UserService } from "../user.service";
 import { ThreadService } from "../thread.service";
-import { Platform } from "../../database/entities/thread.entity";
+import { Platform } from "../../database/entities/platform.enum";
 import { MessageDirection } from "../../database/entities/message.entity";
 import { WidgetInitDto, WidgetInitResponse, WidgetMessageDto } from "./widget.types";
 
 @Injectable()
 export class WidgetConnectorService {
   private readonly logger = new Logger(WidgetConnectorService.name);
+
+  /** sessionToken → fingerprint. Cleared on service restart (MVP: in-memory only). */
+  private readonly sessions = new Map<string, string>();
 
   constructor(
     private readonly agentConfigService: AgentConfigService,
@@ -26,7 +29,11 @@ export class WidgetConnectorService {
 
     const user = await this.userService.findOrCreateByIdentity(Platform.WIDGET, dto.fingerprint);
 
-    const thread = await this.threadService.findOrCreate(agentConfig.agentId, user, Platform.WIDGET);
+    const thread = await this.threadService.findOrCreate(
+      agentConfig.agentId,
+      user,
+      Platform.WIDGET
+    );
 
     if (dto.threadId && dto.threadId !== thread.id) {
       throw new BadRequestException(
@@ -34,13 +41,17 @@ export class WidgetConnectorService {
       );
     }
 
-    return {
-      threadId: thread.id,
-      sessionToken: uuidv4(),
-    };
+    const sessionToken = uuidv4();
+    this.sessions.set(sessionToken, dto.fingerprint);
+
+    return { threadId: thread.id, sessionToken };
   }
 
-  async sendMessage(dto: WidgetMessageDto, req: Request, res: Response): Promise<void> {
+  async sendMessage(
+    dto: WidgetMessageDto,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
     res.set({
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
@@ -61,9 +72,14 @@ export class WidgetConnectorService {
     };
 
     try {
+      const fingerprint = this.sessions.get(dto.sessionToken);
+      if (!fingerprint) {
+        throw new UnauthorizedException("Invalid or expired session token");
+      }
+
       const agentConfig = await this.agentConfigService.resolveByWidgetKey(dto.widgetKey);
 
-      const user = await this.userService.findOrCreateByIdentity(Platform.WIDGET, dto.threadId);
+      const user = await this.userService.findOrCreateByIdentity(Platform.WIDGET, fingerprint);
       const thread = await this.threadService.findOrCreate(
         agentConfig.agentId,
         user,

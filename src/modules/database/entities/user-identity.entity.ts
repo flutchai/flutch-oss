@@ -9,7 +9,7 @@ import {
   Unique,
 } from "typeorm";
 import { User } from "./user.entity";
-import { Platform } from "./thread.entity";
+import { Platform } from "./platform.enum";
 
 @Entity("user_identities")
 @Unique(["platform", "externalId"])
@@ -21,7 +21,8 @@ export class UserIdentity {
   @JoinColumn({ name: "user_id" })
   user: User;
 
-  @Column({ name: "user_id", type: "uuid" })
+  /** Read-only scalar alias for the FK; writes go through the relation. */
+  @Column({ name: "user_id", type: "uuid", insert: false, update: false })
   userId: string;
 
   @Column({ type: "enum", enum: Platform })

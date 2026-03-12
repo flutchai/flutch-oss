@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { Test, TestingModule } from "@nestjs/testing";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { HttpModule } from "@nestjs/axios";
 import { HttpService } from "@nestjs/axios";
 import { NotFoundException } from "@nestjs/common";
@@ -13,8 +13,16 @@ describe("AgentConfigService", () => {
 
     beforeEach(async () => {
       const module: TestingModule = await Test.createTestingModule({
-        imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), HttpModule],
-        providers: [AgentConfigService],
+        imports: [HttpModule],
+        providers: [
+          AgentConfigService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => (key === "CONFIG_MODE" ? "local" : undefined)),
+            },
+          },
+        ],
       }).compile();
 
       service = module.get<AgentConfigService>(AgentConfigService);
@@ -59,21 +67,21 @@ describe("AgentConfigService", () => {
 
     beforeEach(async () => {
       const module: TestingModule = await Test.createTestingModule({
-        imports: [
-          ConfigModule.forRoot({
-            isGlobal: true,
-            ignoreEnvFile: true,
-            load: [
-              () => ({
-                CONFIG_MODE: "platform",
-                API_URL: "https://api.flutch.ai",
-                INTERNAL_API_TOKEN: "test-token",
+        imports: [HttpModule],
+        providers: [
+          AgentConfigService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => {
+                if (key === "CONFIG_MODE") return "platform";
+                if (key === "API_URL") return "https://api.flutch.ai";
+                if (key === "INTERNAL_API_TOKEN") return "test-token";
+                return undefined;
               }),
-            ],
-          }),
-          HttpModule,
+            },
+          },
         ],
-        providers: [AgentConfigService],
       }).compile();
 
       service = module.get<AgentConfigService>(AgentConfigService);
@@ -119,8 +127,16 @@ describe("AgentConfigService", () => {
 
       await expect(
         Test.createTestingModule({
-          imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), HttpModule],
-          providers: [AgentConfigService],
+          imports: [HttpModule],
+          providers: [
+            AgentConfigService,
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn((key: string) => (key === "CONFIG_MODE" ? "local" : undefined)),
+              },
+            },
+          ],
         })
           .compile()
           .then(m => m.get<AgentConfigService>(AgentConfigService))
@@ -134,11 +150,16 @@ describe("AgentConfigService", () => {
   describe("platform mode startup validation", () => {
     async function buildService(env: Record<string, string>) {
       const module = await Test.createTestingModule({
-        imports: [
-          ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => env] }),
-          HttpModule,
+        imports: [HttpModule],
+        providers: [
+          AgentConfigService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => env[key]),
+            },
+          },
         ],
-        providers: [AgentConfigService],
       }).compile();
       return module.get<AgentConfigService>(AgentConfigService);
     }
@@ -156,19 +177,106 @@ describe("AgentConfigService", () => {
     });
   });
 
+  describe("resolveByWidgetKey", () => {
+    let service: AgentConfigService;
+    let httpService: HttpService;
+
+    const agentWithWidget = {
+      agentId: "roofing-agent",
+      graphType: "flutch.agent",
+      graphSettings: { model: "gpt-4o-mini" },
+      platforms: { widget: { widgetKey: "wk_roofing_abc123" } },
+    };
+
+    describe("local mode", () => {
+      beforeEach(async () => {
+        const module: TestingModule = await Test.createTestingModule({
+          imports: [HttpModule],
+          providers: [
+            AgentConfigService,
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn((key: string) => (key === "CONFIG_MODE" ? "local" : undefined)),
+              },
+            },
+          ],
+        }).compile();
+
+        service = module.get<AgentConfigService>(AgentConfigService);
+        (service as any).localConfigs = { "roofing-agent": agentWithWidget };
+      });
+
+      it("returns agent config when widgetKey matches", async () => {
+        const result = await service.resolveByWidgetKey("wk_roofing_abc123");
+        expect(result.agentId).toBe("roofing-agent");
+      });
+
+      it("throws NotFoundException when widgetKey does not match any agent", async () => {
+        await expect(service.resolveByWidgetKey("wk_unknown")).rejects.toThrow(NotFoundException);
+      });
+    });
+
+    describe("platform mode", () => {
+      beforeEach(async () => {
+        const module: TestingModule = await Test.createTestingModule({
+          imports: [HttpModule],
+          providers: [
+            AgentConfigService,
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn((key: string) => {
+                  if (key === "CONFIG_MODE") return "platform";
+                  if (key === "API_URL") return "https://api.flutch.ai";
+                  if (key === "INTERNAL_API_TOKEN") return "test-token";
+                  return undefined;
+                }),
+              },
+            },
+          ],
+        }).compile();
+
+        service = module.get<AgentConfigService>(AgentConfigService);
+        httpService = module.get<HttpService>(HttpService);
+      });
+
+      it("fetches agent from platform by widgetKey", async () => {
+        const getSpy = jest
+          .spyOn(httpService, "get")
+          .mockReturnValue(of({ data: agentWithWidget } as any));
+
+        const result = await service.resolveByWidgetKey("wk_roofing_abc123");
+
+        expect(getSpy).toHaveBeenCalledWith(
+          "https://api.flutch.ai/agents/by-widget-key/wk_roofing_abc123",
+          expect.objectContaining({ headers: { Authorization: "Bearer test-token" } }),
+        );
+        expect(result.agentId).toBe("roofing-agent");
+      });
+
+      it("throws NotFoundException when platform returns error", async () => {
+        jest.spyOn(httpService, "get").mockReturnValue(throwError(() => new Error("not found")));
+
+        await expect(service.resolveByWidgetKey("wk_unknown")).rejects.toThrow(NotFoundException);
+      });
+    });
+  });
+
   describe("invalid CONFIG_MODE", () => {
     it("should throw on invalid CONFIG_MODE value", async () => {
       await expect(
         Test.createTestingModule({
-          imports: [
-            ConfigModule.forRoot({
-              isGlobal: true,
-              ignoreEnvFile: true,
-              load: [() => ({ CONFIG_MODE: "cloud" })],
-            }),
-            HttpModule,
+          imports: [HttpModule],
+          providers: [
+            AgentConfigService,
+            {
+              provide: ConfigService,
+              useValue: {
+                get: jest.fn(() => "cloud"),
+              },
+            },
           ],
-          providers: [AgentConfigService],
         })
           .compile()
           .then(m => m.get<AgentConfigService>(AgentConfigService))

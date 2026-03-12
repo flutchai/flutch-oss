@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { AgentConfigService } from "../../config/agent-config.service";
 import { UserService } from "../user.service";
 import { ThreadService } from "../thread.service";
-import { Platform } from "../../database/entities/thread.entity";
+import { Platform } from "../../database/entities/platform.enum";
 import { MessageDirection } from "../../database/entities/message.entity";
 import { TelegramApiClient } from "./telegram-api.client";
 import { TelegramUpdate } from "./telegram.types";

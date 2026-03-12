@@ -1,7 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { ThreadService } from "./thread.service";
-import { Thread, Platform } from "../database/entities/thread.entity";
+import { Thread } from "../database/entities/thread.entity";
+import { Platform } from "../database/entities/platform.enum";
 import { Message, MessageDirection } from "../database/entities/message.entity";
 import { User } from "../database/entities/user.entity";
 
@@ -83,7 +84,7 @@ describe("ThreadService", () => {
 
       expect(threadRepo.create).toHaveBeenCalledWith({
         agentId: "roofing-agent",
-        userId: mockUser.id,
+        user: mockUser,
         platform: Platform.TELEGRAM,
       });
       expect(threadRepo.save).toHaveBeenCalled();

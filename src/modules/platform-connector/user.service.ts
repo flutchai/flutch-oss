@@ -3,7 +3,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { User } from "../database/entities/user.entity";
 import { UserIdentity } from "../database/entities/user-identity.entity";
-import { Platform } from "../database/entities/thread.entity";
+import { Thread } from "../database/entities/thread.entity";
+import { Platform } from "../database/entities/platform.enum";
 
 @Injectable()
 export class UserService {
@@ -13,7 +14,7 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserIdentity)
-    private readonly identityRepo: Repository<UserIdentity>
+    private readonly identityRepo: Repository<UserIdentity>,
   ) {}
 
   /**
@@ -23,7 +24,7 @@ export class UserService {
   async findOrCreateByIdentity(
     platform: Platform,
     externalId: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<User> {
     let identity = await this.identityRepo.findOne({
       where: { platform, externalId },
@@ -40,7 +41,7 @@ export class UserService {
 
     const user = await this.userRepo.save(this.userRepo.create());
     identity = this.identityRepo.create({
-      userId: user.id,
+      user,
       platform,
       externalId,
       metadata: metadata ?? null,
@@ -68,15 +69,24 @@ export class UserService {
     if (!source) throw new NotFoundException(`Source user ${sourceUserId} not found`);
     if (!target) throw new NotFoundException(`Target user ${targetUserId} not found`);
 
-    // Reassign all identities to target
+    // Reassign all identities to target via QueryBuilder (bypasses insert:false/update:false)
     if (source.identities?.length) {
-      await this.identityRepo.update({ userId: sourceUserId }, { userId: targetUserId });
+      await this.identityRepo
+        .createQueryBuilder()
+        .update()
+        .set({ userId: targetUserId })
+        .where("user_id = :userId", { userId: sourceUserId })
+        .execute();
     }
 
-    // Reassign all threads to target (FK update)
+    // Reassign all threads to target
     await this.userRepo.manager
-      .getRepository("threads")
-      .update({ userId: sourceUserId }, { userId: targetUserId });
+      .getRepository(Thread)
+      .createQueryBuilder()
+      .update()
+      .set({ userId: targetUserId })
+      .where("user_id = :userId", { userId: sourceUserId })
+      .execute();
 
     await this.userRepo.delete(sourceUserId);
     this.logger.log(`Merged user ${sourceUserId} into ${targetUserId}`);

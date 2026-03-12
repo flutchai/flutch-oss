@@ -24,14 +24,19 @@ import { TypeOrmModule, getRepositoryToken } from "@nestjs/typeorm";
 import { ConfigModule } from "@nestjs/config";
 import { HttpModule } from "@nestjs/axios";
 import { Repository } from "typeorm";
-import { Thread, Platform } from "../../src/modules/database/entities/thread.entity";
+import { Thread } from "../../src/modules/database/entities/thread.entity";
+import { Platform } from "../../src/modules/database/entities/platform.enum";
 import { Message, MessageDirection } from "../../src/modules/database/entities/message.entity";
+import { User } from "../../src/modules/database/entities/user.entity";
+import { UserIdentity } from "../../src/modules/database/entities/user-identity.entity";
 import { InitialSchema1741769000000 } from "../../src/migrations/1741769000000-InitialSchema";
+import { AddUsersAndIdentities1741870000000 } from "../../src/migrations/1741870000000-AddUsersAndIdentities";
 import { AgentConfigService } from "../../src/modules/config/agent-config.service";
 import { TelegramWebhookController } from "../../src/modules/platform-connector/telegram/telegram-webhook.controller";
 import { TelegramConnectorService } from "../../src/modules/platform-connector/telegram/telegram-connector.service";
 import { TelegramApiClient } from "../../src/modules/platform-connector/telegram/telegram-api.client";
 import { ThreadService } from "../../src/modules/platform-connector/thread.service";
+import { UserService } from "../../src/modules/platform-connector/user.service";
 
 const fakeUpdate = {
   update_id: 1,
@@ -51,10 +56,18 @@ const mockAgentConfig = {
   platforms: { telegram: { botToken: "e2e-bot-token" } },
 };
 
+const mockUser = {
+  id: "00000000-0000-0000-0000-000000999999",
+  identities: [],
+  threads: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
 const mockContext = {
   agentId: "roofing-agent",
-  userId: "999999",
-  threadId: "roofing-agent:999999",
+  userId: "00000000-0000-0000-0000-000000999999",
+  threadId: "roofing-agent:00000000-0000-0000-0000-000000999999",
   graphType: "flutch.agent",
   graphSettings: { model: "gpt-4o-mini" },
 };
@@ -63,6 +76,7 @@ describe("Telegram Webhook (E2E)", () => {
   let app: INestApplication;
   let threadRepo: Repository<Thread>;
   let messageRepo: Repository<Message>;
+  let userRepo: Repository<User>;
   let dataSource: DataSource;
   let mockGraphService: { generateAnswer: jest.Mock };
   let mockTelegramApiClient: { sendMessage: jest.Mock };
@@ -87,20 +101,26 @@ describe("Telegram Webhook (E2E)", () => {
           username: process.env.POSTGRES_USER ?? "flutch",
           password: process.env.POSTGRES_PASSWORD ?? "flutch",
           database: process.env.POSTGRES_DB ?? "flutch_oss_test",
-          entities: [Thread, Message],
+          entities: [Thread, Message, User, UserIdentity],
           // Use real migrations — same path as production.
           // If a migration is broken, test setup will fail here, not in prod.
-          migrations: [InitialSchema1741769000000],
+          migrations: [InitialSchema1741769000000, AddUsersAndIdentities1741870000000],
           migrationsRun: true,
           synchronize: false,
           dropSchema: true, // clean slate before each test run
         }),
-        TypeOrmModule.forFeature([Thread, Message]),
+        TypeOrmModule.forFeature([Thread, Message, User, UserIdentity]),
         HttpModule,
       ],
       controllers: [TelegramWebhookController],
       providers: [
         ThreadService,
+        {
+          provide: UserService,
+          useValue: {
+            findOrCreateByIdentity: jest.fn().mockResolvedValue(mockUser),
+          },
+        },
         TelegramConnectorService,
         {
           provide: AgentConfigService,
@@ -120,13 +140,20 @@ describe("Telegram Webhook (E2E)", () => {
     dataSource = moduleFixture.get(DataSource);
     threadRepo = moduleFixture.get(getRepositoryToken(Thread));
     messageRepo = moduleFixture.get(getRepositoryToken(Message));
+    userRepo = moduleFixture.get(getRepositoryToken(User));
   });
 
   afterEach(async () => {
-    await messageRepo.delete({});
-    await threadRepo.delete({});
+    // Delete messages first to avoid FK constraint issues
+    await messageRepo.query('DELETE FROM "messages"');
+    await threadRepo.query('DELETE FROM "threads"');
+    await userRepo.query('DELETE FROM "users"');
     mockGraphService.generateAnswer.mockClear();
     mockTelegramApiClient.sendMessage.mockClear();
+  });
+
+  beforeEach(async () => {
+    await userRepo.save(mockUser);
   });
 
   afterAll(async () => {
@@ -149,7 +176,7 @@ describe("Telegram Webhook (E2E)", () => {
     const threads = await threadRepo.find();
     expect(threads).toHaveLength(1);
     expect(threads[0].agentId).toBe("roofing-agent");
-    expect(threads[0].userId).toBe("999999");
+    expect(threads[0].userId).toBe("00000000-0000-0000-0000-000000999999");
     expect(threads[0].platform).toBe(Platform.TELEGRAM);
   });
 

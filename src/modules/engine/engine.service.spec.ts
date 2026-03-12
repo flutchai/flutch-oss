@@ -42,7 +42,9 @@ describe("EngineService", () => {
       input: "hello",
     } as any);
 
-    expect(payload.input).toBe("hello");
+    expect(payload.input).toEqual({
+      messages: [expect.objectContaining({ content: "hello" })],
+    });
     expect(payload.config.configurable.thread_id).toBe("my-agent:user-1");
     expect(payload.config.configurable.context.agentId).toBe("my-agent");
     expect(payload.config.configurable.context.userId).toBe("user-1");

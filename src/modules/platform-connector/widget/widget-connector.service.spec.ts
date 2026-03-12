@@ -1,10 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, UnauthorizedException } from "@nestjs/common";
 import { WidgetConnectorService } from "./widget-connector.service";
 import { AgentConfigService } from "../../config/agent-config.service";
 import { UserService } from "../user.service";
 import { ThreadService } from "../thread.service";
-import { Platform } from "../../database/entities/thread.entity";
+import { Platform } from "../../database/entities/platform.enum";
 import { MessageDirection } from "../../database/entities/message.entity";
 
 const mockUser = {
@@ -36,6 +36,9 @@ const mockContext = {
 };
 const mockResult = { requestId: "req-1", text: "Кровля стоит 500$", metadata: {} };
 
+const TEST_SESSION = "test-session-token";
+const TEST_FINGERPRINT = "fp-abc";
+
 function makeMockRes() {
   return {
     set: jest.fn(),
@@ -45,11 +48,30 @@ function makeMockRes() {
   };
 }
 
-function makeMockReq(onClose?: () => void) {
+/** Returns a mock req whose close handler can be triggered via triggerClose(). */
+function makeMockReq() {
+  let closeHandler: (() => void) | undefined;
   return {
     on: jest.fn((event: string, cb: () => void) => {
-      if (event === "close" && onClose) onClose = cb;
+      if (event === "close") closeHandler = cb;
     }),
+    triggerClose: () => closeHandler?.(),
+  };
+}
+
+/** Helper: seed a session token into the service's internal Map. */
+function seedSession(svc: WidgetConnectorService, token = TEST_SESSION, fp = TEST_FINGERPRINT) {
+  (svc as any).sessions.set(token, fp);
+}
+
+/** Helper: build a valid WidgetMessageDto with a pre-seeded session token. */
+function msgDto(overrides: Partial<{ sessionToken: string; text: string; threadId: string }> = {}) {
+  return {
+    widgetKey: "wk_test",
+    threadId: "thread-uuid-1",
+    sessionToken: TEST_SESSION,
+    text: "Вопрос",
+    ...overrides,
   };
 }
 
@@ -109,6 +131,11 @@ describe("WidgetConnectorService", () => {
       expect(result.sessionToken).toBeTruthy();
     });
 
+    it("stores sessionToken in sessions map", async () => {
+      const { sessionToken } = await service.init({ widgetKey: "wk_test", fingerprint: "fp-abc" });
+      expect((service as any).sessions.get(sessionToken)).toBe("fp-abc");
+    });
+
     it("reuses existing thread on repeated init", async () => {
       await service.init({ widgetKey: "wk_test", fingerprint: "fp-abc" });
       await service.init({ widgetKey: "wk_test", fingerprint: "fp-abc" });
@@ -118,13 +145,13 @@ describe("WidgetConnectorService", () => {
 
     it("accepts matching threadId without error", async () => {
       await expect(
-        service.init({ widgetKey: "wk_test", fingerprint: "fp-abc", threadId: "thread-uuid-1" })
+        service.init({ widgetKey: "wk_test", fingerprint: "fp-abc", threadId: "thread-uuid-1" }),
       ).resolves.not.toThrow();
     });
 
     it("throws BadRequestException when threadId does not match", async () => {
       await expect(
-        service.init({ widgetKey: "wk_test", fingerprint: "fp-abc", threadId: "wrong-thread-id" })
+        service.init({ widgetKey: "wk_test", fingerprint: "fp-abc", threadId: "wrong-thread-id" }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -143,15 +170,13 @@ describe("WidgetConnectorService", () => {
   // ── sendMessage ───────────────────────────────────────────────────────────
 
   describe("sendMessage", () => {
+    beforeEach(() => seedSession(service));
+
     it("sets SSE headers and flushes before streaming", async () => {
       const res = makeMockRes();
       const req = makeMockReq();
 
-      await service.sendMessage(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Привет" },
-        req as any,
-        res as any
-      );
+      await service.sendMessage(msgDto(), req as any, res as any);
 
       expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -159,20 +184,44 @@ describe("WidgetConnectorService", () => {
           "Cache-Control": "no-cache",
           Connection: "keep-alive",
           "X-Accel-Buffering": "no",
-        })
+        }),
       );
       expect(res.flushHeaders).toHaveBeenCalled();
+    });
+
+    it("throws UnauthorizedException for unknown sessionToken", async () => {
+      const res = makeMockRes();
+      const req = makeMockReq();
+
+      await service.sendMessage(
+        msgDto({ sessionToken: "invalid-token" }),
+        req as any,
+        res as any,
+      );
+
+      expect(res.write).toHaveBeenCalledWith(
+        expect.stringContaining("event: error"),
+      );
+      expect(res.end).toHaveBeenCalled();
+    });
+
+    it("resolves user by fingerprint stored in session (not by threadId)", async () => {
+      const res = makeMockRes();
+      const req = makeMockReq();
+
+      await service.sendMessage(msgDto(), req as any, res as any);
+
+      expect(userService.findOrCreateByIdentity).toHaveBeenCalledWith(
+        Platform.WIDGET,
+        TEST_FINGERPRINT,
+      );
     });
 
     it("calls streamAnswer (not generateAnswer)", async () => {
       const res = makeMockRes();
       const req = makeMockReq();
 
-      await service.sendMessage(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Вопрос" },
-        req as any,
-        res as any
-      );
+      await service.sendMessage(msgDto(), req as any, res as any);
 
       expect(graphService.streamAnswer).toHaveBeenCalledTimes(1);
     });
@@ -181,14 +230,29 @@ describe("WidgetConnectorService", () => {
       const res = makeMockRes();
       const req = makeMockReq();
 
-      await service.sendMessage(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Вопрос" },
-        req as any,
-        res as any
-      );
+      await service.sendMessage(msgDto(), req as any, res as any);
 
       expect(res.write).toHaveBeenCalledWith("event: partial\ndata: Кровля \n\n");
       expect(res.write).toHaveBeenCalledWith("event: partial\ndata: стоит 500$\n\n");
+    });
+
+    it("does not write after client disconnect", async () => {
+      const req = makeMockReq();
+      const res = makeMockRes();
+
+      graphService.streamAnswer.mockImplementation(async (_p, onPartial) => {
+        onPartial("before-disconnect");
+        req.triggerClose(); // simulate client disconnect mid-stream
+        onPartial("after-disconnect"); // must not be written
+        return mockResult;
+      });
+
+      await service.sendMessage(msgDto(), req as any, res as any);
+
+      expect(res.write).toHaveBeenCalledWith("event: partial\ndata: before-disconnect\n\n");
+      expect(res.write).not.toHaveBeenCalledWith(
+        "event: partial\ndata: after-disconnect\n\n",
+      );
     });
 
     it("saves incoming message before calling engine", async () => {
@@ -204,11 +268,7 @@ describe("WidgetConnectorService", () => {
 
       const res = makeMockRes();
       const req = makeMockReq();
-      await service.sendMessage(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Вопрос" },
-        req as any,
-        res as any
-      );
+      await service.sendMessage(msgDto(), req as any, res as any);
 
       expect(callOrder[0]).toBe("save:" + MessageDirection.INCOMING);
       expect(callOrder[1]).toBe("engine");
@@ -218,16 +278,12 @@ describe("WidgetConnectorService", () => {
       const res = makeMockRes();
       const req = makeMockReq();
 
-      await service.sendMessage(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Вопрос" },
-        req as any,
-        res as any
-      );
+      await service.sendMessage(msgDto(), req as any, res as any);
 
       expect(threadService.saveMessage).toHaveBeenCalledWith(
         "thread-uuid-1",
         "Кровля стоит 500$",
-        MessageDirection.OUTGOING
+        MessageDirection.OUTGOING,
       );
     });
 
@@ -235,14 +291,10 @@ describe("WidgetConnectorService", () => {
       const res = makeMockRes();
       const req = makeMockReq();
 
-      await service.sendMessage(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Вопрос" },
-        req as any,
-        res as any
-      );
+      await service.sendMessage(msgDto(), req as any, res as any);
 
       const finalCall = (res.write as jest.Mock).mock.calls.find(([arg]: [string]) =>
-        arg.startsWith("event: final")
+        arg.startsWith("event: final"),
       );
       expect(finalCall).toBeDefined();
     });
@@ -251,26 +303,18 @@ describe("WidgetConnectorService", () => {
       const res = makeMockRes();
       const req = makeMockReq();
 
-      await service.sendMessage(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Вопрос" },
-        req as any,
-        res as any
-      );
+      await service.sendMessage(msgDto(), req as any, res as any);
 
       expect(res.end).toHaveBeenCalled();
     });
 
-    it("writes event: error when engine throws", async () => {
+    it("writes event: error and still calls res.end() when engine throws", async () => {
       graphService.streamAnswer.mockRejectedValue(new Error("engine failure"));
 
       const res = makeMockRes();
       const req = makeMockReq();
 
-      await service.sendMessage(
-        { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Вопрос" },
-        req as any,
-        res as any
-      );
+      await service.sendMessage(msgDto(), req as any, res as any);
 
       expect(res.write).toHaveBeenCalledWith("event: error\ndata: engine failure\n\n");
       expect(res.end).toHaveBeenCalled();

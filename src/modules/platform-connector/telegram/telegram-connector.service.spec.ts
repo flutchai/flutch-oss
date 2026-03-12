@@ -5,7 +5,7 @@ import { TelegramApiClient } from "./telegram-api.client";
 import { AgentConfigService } from "../../config/agent-config.service";
 import { UserService } from "../user.service";
 import { ThreadService } from "../thread.service";
-import { Platform } from "../../database/entities/thread.entity";
+import { Platform } from "../../database/entities/platform.enum";
 import { MessageDirection } from "../../database/entities/message.entity";
 import { TelegramUpdate } from "./telegram.types";
 
@@ -130,7 +130,11 @@ describe("TelegramConnectorService", () => {
       };
       await service.handleUpdate("roofing-agent", cbUpdate);
       expect(graphService.generateAnswer).toHaveBeenCalledWith(
-        expect.objectContaining({ input: "button_clicked" })
+        expect.objectContaining({
+          input: {
+            messages: [expect.objectContaining({ content: "button_clicked" })],
+          },
+        })
       );
     });
 

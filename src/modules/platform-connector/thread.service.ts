@@ -1,7 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Thread, Platform } from "../database/entities/thread.entity";
+import { Thread } from "../database/entities/thread.entity";
+import { Platform } from "../database/entities/platform.enum";
 import { Message, MessageDirection } from "../database/entities/message.entity";
 import { User } from "../database/entities/user.entity";
 
@@ -23,7 +24,7 @@ export class ThreadService {
   async findOrCreate(agentId: string, user: User, platform: Platform): Promise<Thread> {
     let thread = await this.threadRepo.findOne({ where: { agentId, userId: user.id, platform } });
     if (!thread) {
-      thread = this.threadRepo.create({ agentId, userId: user.id, platform });
+      thread = this.threadRepo.create({ agentId, user, platform });
       thread = await this.threadRepo.save(thread);
       this.logger.debug(`Created thread ${thread.id} for agent="${agentId}" user="${user.id}"`);
     }

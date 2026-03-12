@@ -10,12 +10,7 @@ import {
 } from "typeorm";
 import { Message } from "./message.entity";
 import { User } from "./user.entity";
-
-export enum Platform {
-  TELEGRAM = "telegram",
-  WIDGET = "widget",
-  API = "api",
-}
+import { Platform } from "./platform.enum";
 
 @Entity("threads")
 @Unique(["agentId", "userId", "platform"])
@@ -30,11 +25,11 @@ export class Thread {
   @JoinColumn({ name: "user_id" })
   user: User;
 
-  /** UUID reference to users.id */
-  @Column({ name: "user_id", type: "uuid" })
+  /** Read-only scalar alias for the FK; writes go through the relation. */
+  @Column({ name: "user_id", type: "uuid", insert: false, update: false })
   userId: string;
 
-  @Column({ type: "enum", enum: Platform, default: Platform.TELEGRAM })
+  @Column({ type: "enum", enum: Platform })
   platform: Platform;
 
   @CreateDateColumn({ name: "created_at" })

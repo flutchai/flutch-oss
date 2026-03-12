@@ -4,7 +4,7 @@ import { NotFoundException } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { User } from "../database/entities/user.entity";
 import { UserIdentity } from "../database/entities/user-identity.entity";
-import { Platform } from "../database/entities/thread.entity";
+import { Platform } from "../database/entities/platform.enum";
 
 const mockUser = (id = "user-uuid-1"): User => ({
   id,
@@ -112,7 +112,7 @@ describe("UserService", () => {
 
       expect(userRepo.save).toHaveBeenCalled();
       expect(identityRepo.create).toHaveBeenCalledWith({
-        userId: newUser.id,
+        user: newUser,
         platform: Platform.TELEGRAM,
         externalId: "99999",
         metadata: { firstName: "Maria" },
@@ -136,9 +136,16 @@ describe("UserService", () => {
   });
 
   describe("mergeUsers", () => {
-    const mockThreadsRepo = { update: jest.fn() };
+    const mockQb = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({}),
+    };
+    const mockThreadsRepo = { createQueryBuilder: jest.fn().mockReturnValue(mockQb) };
 
     beforeEach(() => {
+      identityRepo.createQueryBuilder = jest.fn().mockReturnValue(mockQb);
       mockEntityManager.getRepository.mockReturnValue(mockThreadsRepo);
     });
 
@@ -147,32 +154,24 @@ describe("UserService", () => {
       const target = mockUser("target-id");
 
       userRepo.findOne.mockResolvedValueOnce(source).mockResolvedValueOnce(target);
-      identityRepo.update.mockResolvedValue({});
-      mockThreadsRepo.update.mockResolvedValue({});
       userRepo.delete.mockResolvedValue({});
 
       await service.mergeUsers("source-id", "target-id");
 
-      expect(identityRepo.update).toHaveBeenCalledWith(
-        { userId: "source-id" },
-        { userId: "target-id" }
-      );
-      expect(mockThreadsRepo.update).toHaveBeenCalledWith(
-        { userId: "source-id" },
-        { userId: "target-id" }
-      );
+      expect(identityRepo.createQueryBuilder).toHaveBeenCalled();
+      expect(mockQb.set).toHaveBeenCalledWith({ userId: "target-id" });
+      expect(mockThreadsRepo.createQueryBuilder).toHaveBeenCalled();
       expect(userRepo.delete).toHaveBeenCalledWith("source-id");
     });
 
     it("skips identity update when source has no identities", async () => {
       const source = { ...mockUser("source-id"), identities: [] };
       userRepo.findOne.mockResolvedValueOnce(source).mockResolvedValueOnce(mockUser("target-id"));
-      mockThreadsRepo.update.mockResolvedValue({});
       userRepo.delete.mockResolvedValue({});
 
       await service.mergeUsers("source-id", "target-id");
 
-      expect(identityRepo.update).not.toHaveBeenCalled();
+      expect(identityRepo.createQueryBuilder).not.toHaveBeenCalled();
       expect(userRepo.delete).toHaveBeenCalledWith("source-id");
     });
 

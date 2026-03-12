@@ -12,5 +12,6 @@ export interface WidgetInitResponse {
 export interface WidgetMessageDto {
   widgetKey: string;
   threadId: string;
+  sessionToken: string;
   text: string;
 }
