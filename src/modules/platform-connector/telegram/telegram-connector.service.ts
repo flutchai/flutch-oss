@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { IGraphService, IGraphRequestPayload } from "@flutchai/flutch-sdk";
 import { v4 as uuidv4 } from "uuid";
 import { AgentConfigService } from "../../config/agent-config.service";
+import { UserService } from "../user.service";
 import { ThreadService } from "../thread.service";
 import { Platform } from "../../database/entities/thread.entity";
 import { MessageDirection } from "../../database/entities/message.entity";
@@ -15,10 +16,11 @@ export class TelegramConnectorService {
 
   constructor(
     private readonly agentConfigService: AgentConfigService,
+    private readonly userService: UserService,
     private readonly threadService: ThreadService,
     private readonly telegramApiClient: TelegramApiClient,
     private readonly configService: ConfigService,
-    @Inject("GRAPH_SERVICE") private readonly graphService: IGraphService
+    @Inject("GRAPH_SERVICE") private readonly graphService: IGraphService,
   ) {}
 
   async handleUpdate(agentId: string, update: TelegramUpdate): Promise<void> {
@@ -37,12 +39,27 @@ export class TelegramConnectorService {
 
     this.logger.debug(`Handling update from chat ${chatId} for agent "${agentId}"`);
 
+    // Resolve or create user by Telegram identity
+    const from = update.message?.from ?? update.callback_query?.from;
+    const user = await this.userService.findOrCreateByIdentity(
+      Platform.TELEGRAM,
+      String(chatId),
+      from
+        ? {
+            firstName: from.first_name,
+            lastName: from.last_name,
+            username: from.username,
+            languageCode: from.language_code,
+          }
+        : undefined,
+    );
+
     // Persist: find or create thread, save incoming message
-    const thread = await this.threadService.findOrCreate(agentId, String(chatId), Platform.TELEGRAM);
+    const thread = await this.threadService.findOrCreate(agentId, user, Platform.TELEGRAM);
     await this.threadService.saveMessage(thread.id, text, MessageDirection.INCOMING);
 
     const botToken = await this.resolveBotToken(agentId);
-    const context = await this.agentConfigService.resolve(agentId, String(chatId));
+    const context = await this.agentConfigService.resolve(agentId, user.id);
 
     const payload: IGraphRequestPayload = {
       requestId: uuidv4(),
@@ -52,7 +69,7 @@ export class TelegramConnectorService {
           thread_id: thread.id,
           context: {
             agentId: context.agentId,
-            userId: context.userId,
+            userId: user.id,
             threadId: thread.id,
           },
           graphSettings: context.graphSettings,
@@ -63,19 +80,16 @@ export class TelegramConnectorService {
 
     const result = await this.graphService.generateAnswer(payload);
 
-    // Persist outgoing message, then send to Telegram
     await this.threadService.saveMessage(thread.id, result.text, MessageDirection.OUTGOING);
     await this.telegramApiClient.sendMessage(botToken, chatId, result.text);
     this.logger.debug(`Replied to chat ${chatId}`);
   }
 
   private async resolveBotToken(agentId: string): Promise<string> {
-    // 1. Per-agent env var: TELEGRAM_BOT_TOKEN_<AGENTID> (dashes → underscores, uppercased)
     const envKey = `TELEGRAM_BOT_TOKEN_${agentId.toUpperCase().replace(/-/g, "_")}`;
     const envToken = this.configService.get<string>(envKey);
     if (envToken) return envToken;
 
-    // 2. agents.json platforms.telegram.botToken
     const config = await this.agentConfigService.getConfig(agentId);
     const token = config.platforms?.telegram?.botToken;
     if (token) return token;

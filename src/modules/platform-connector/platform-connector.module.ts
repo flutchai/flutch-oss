@@ -3,24 +3,29 @@ import { HttpModule } from "@nestjs/axios";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { UniversalGraphService } from "@flutchai/flutch-sdk";
 import { AgentConfigModule } from "../config/config.module";
+import { User } from "../database/entities/user.entity";
+import { UserIdentity } from "../database/entities/user-identity.entity";
 import { Thread } from "../database/entities/thread.entity";
 import { Message } from "../database/entities/message.entity";
+import { UserService } from "./user.service";
 import { ThreadService } from "./thread.service";
 import { TelegramWebhookController } from "./telegram/telegram-webhook.controller";
 import { TelegramConnectorService } from "./telegram/telegram-connector.service";
 import { TelegramApiClient } from "./telegram/telegram-api.client";
 
 @Module({
-  imports: [HttpModule, AgentConfigModule, TypeOrmModule.forFeature([Thread, Message])],
+  imports: [
+    HttpModule,
+    AgentConfigModule,
+    TypeOrmModule.forFeature([User, UserIdentity, Thread, Message]),
+  ],
   controllers: [TelegramWebhookController],
   providers: [
+    UserService,
     ThreadService,
     TelegramConnectorService,
     TelegramApiClient,
     {
-      // UniversalGraphService is provided globally by UniversalGraphModule.forRoot()
-      // in AppModule. Re-registering it under GRAPH_SERVICE token makes the dependency
-      // explicit and keeps the module testable in isolation.
       provide: "GRAPH_SERVICE",
       useExisting: UniversalGraphService,
     },

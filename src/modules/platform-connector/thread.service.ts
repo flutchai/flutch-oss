@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Thread, Platform } from "../database/entities/thread.entity";
 import { Message, MessageDirection } from "../database/entities/message.entity";
+import { User } from "../database/entities/user.entity";
 
 @Injectable()
 export class ThreadService {
@@ -12,19 +13,19 @@ export class ThreadService {
     @InjectRepository(Thread)
     private readonly threadRepo: Repository<Thread>,
     @InjectRepository(Message)
-    private readonly messageRepo: Repository<Message>
+    private readonly messageRepo: Repository<Message>,
   ) {}
 
   /**
    * Returns an existing thread or creates a new one for the given
-   * agentId + userId + platform combination.
+   * agentId + user + platform combination.
    */
-  async findOrCreate(agentId: string, userId: string, platform: Platform): Promise<Thread> {
-    let thread = await this.threadRepo.findOne({ where: { agentId, userId, platform } });
+  async findOrCreate(agentId: string, user: User, platform: Platform): Promise<Thread> {
+    let thread = await this.threadRepo.findOne({ where: { agentId, userId: user.id, platform } });
     if (!thread) {
-      thread = this.threadRepo.create({ agentId, userId, platform });
+      thread = this.threadRepo.create({ agentId, userId: user.id, platform });
       thread = await this.threadRepo.save(thread);
-      this.logger.debug(`Created thread ${thread.id} for agent="${agentId}" user="${userId}"`);
+      this.logger.debug(`Created thread ${thread.id} for agent="${agentId}" user="${user.id}"`);
     }
     return thread;
   }

@@ -3,11 +3,21 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { ThreadService } from "./thread.service";
 import { Thread, Platform } from "../database/entities/thread.entity";
 import { Message, MessageDirection } from "../database/entities/message.entity";
+import { User } from "../database/entities/user.entity";
+
+const mockUser: User = {
+  id: "user-uuid-1",
+  identities: [],
+  threads: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
 
 const mockThread: Thread = {
   id: "thread-uuid",
   agentId: "roofing-agent",
-  userId: "111111",
+  userId: mockUser.id,
+  user: mockUser,
   platform: Platform.TELEGRAM,
   createdAt: new Date(),
   messages: [],
@@ -54,43 +64,43 @@ describe("ThreadService", () => {
   });
 
   describe("findOrCreate", () => {
-    it("should return existing thread when found", async () => {
+    it("returns existing thread when found", async () => {
       threadRepo.findOne.mockResolvedValue(mockThread);
 
-      const result = await service.findOrCreate("roofing-agent", "111111", Platform.TELEGRAM);
+      const result = await service.findOrCreate("roofing-agent", mockUser, Platform.TELEGRAM);
 
       expect(threadRepo.findOne).toHaveBeenCalledWith({
-        where: { agentId: "roofing-agent", userId: "111111", platform: Platform.TELEGRAM },
+        where: { agentId: "roofing-agent", userId: mockUser.id, platform: Platform.TELEGRAM },
       });
       expect(threadRepo.create).not.toHaveBeenCalled();
       expect(result).toEqual(mockThread);
     });
 
-    it("should create a new thread when not found", async () => {
+    it("creates a new thread when not found", async () => {
       threadRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.findOrCreate("roofing-agent", "111111", Platform.TELEGRAM);
+      const result = await service.findOrCreate("roofing-agent", mockUser, Platform.TELEGRAM);
 
       expect(threadRepo.create).toHaveBeenCalledWith({
         agentId: "roofing-agent",
-        userId: "111111",
+        userId: mockUser.id,
         platform: Platform.TELEGRAM,
       });
       expect(threadRepo.save).toHaveBeenCalled();
       expect(result).toEqual(mockThread);
     });
 
-    it("should not save when thread already exists", async () => {
+    it("does not save when thread already exists", async () => {
       threadRepo.findOne.mockResolvedValue(mockThread);
 
-      await service.findOrCreate("roofing-agent", "111111", Platform.TELEGRAM);
+      await service.findOrCreate("roofing-agent", mockUser, Platform.TELEGRAM);
 
       expect(threadRepo.save).not.toHaveBeenCalled();
     });
   });
 
   describe("saveMessage", () => {
-    it("should create and save a message", async () => {
+    it("creates and saves a message", async () => {
       const result = await service.saveMessage("thread-uuid", "Hello", MessageDirection.INCOMING);
 
       expect(messageRepo.create).toHaveBeenCalledWith({
@@ -102,11 +112,11 @@ describe("ThreadService", () => {
       expect(result).toEqual(mockMessage);
     });
 
-    it("should save outgoing messages", async () => {
+    it("saves outgoing messages", async () => {
       await service.saveMessage("thread-uuid", "AI response", MessageDirection.OUTGOING);
 
       expect(messageRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ direction: MessageDirection.OUTGOING })
+        expect.objectContaining({ direction: MessageDirection.OUTGOING }),
       );
     });
   });

@@ -4,12 +4,16 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
   Unique,
 } from "typeorm";
 import { Message } from "./message.entity";
+import { User } from "./user.entity";
 
 export enum Platform {
   TELEGRAM = "telegram",
+  WIDGET = "widget",
   API = "api",
 }
 
@@ -22,8 +26,12 @@ export class Thread {
   @Column({ name: "agent_id" })
   agentId: string;
 
-  /** Platform-specific user identifier (e.g. Telegram chatId as string) */
-  @Column({ name: "user_id" })
+  @ManyToOne(() => User, (user) => user.threads, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
+  user: User;
+
+  /** UUID reference to users.id */
+  @Column({ name: "user_id", type: "uuid" })
   userId: string;
 
   @Column({ type: "enum", enum: Platform, default: Platform.TELEGRAM })
