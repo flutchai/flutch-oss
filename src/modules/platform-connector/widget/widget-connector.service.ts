@@ -1,4 +1,10 @@
-import { Injectable, Inject, Logger, BadRequestException, UnauthorizedException } from "@nestjs/common";
+import {
+  Injectable,
+  Inject,
+  Logger,
+  BadRequestException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { Response, Request } from "express";
 import { IGraphService, IGraphRequestPayload } from "@flutchai/flutch-sdk";
 import { HumanMessage } from "@langchain/core/messages";
@@ -47,11 +53,7 @@ export class WidgetConnectorService {
     return { threadId: thread.id, sessionToken };
   }
 
-  async sendMessage(
-    dto: WidgetMessageDto,
-    req: Request,
-    res: Response,
-  ): Promise<void> {
+  async sendMessage(dto: WidgetMessageDto, req: Request, res: Response): Promise<void> {
     res.set({
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",

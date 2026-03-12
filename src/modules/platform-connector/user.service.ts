@@ -14,7 +14,7 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserIdentity)
-    private readonly identityRepo: Repository<UserIdentity>,
+    private readonly identityRepo: Repository<UserIdentity>
   ) {}
 
   /**
@@ -24,7 +24,7 @@ export class UserService {
   async findOrCreateByIdentity(
     platform: Platform,
     externalId: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, any>
   ): Promise<User> {
     let identity = await this.identityRepo.findOne({
       where: { platform, externalId },
