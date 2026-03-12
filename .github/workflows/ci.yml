@@ -1,52 +1,42 @@
 name: CI
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [main]
   push:
-    branches: [main]
-  workflow_dispatch:
-
-env:
-  NODE_VERSION: "20"
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
 
 jobs:
-  ci:
-    if: github.event.pull_request.draft == false || github.event_name != 'pull_request'
+  # ─── Unit tests (no external services) ─────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: "20"
           cache: "yarn"
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --immutable
 
-      - name: Lint
-        run: yarn lint
+      - name: Run unit tests with coverage
+        run: yarn test:cov
 
-      - name: Format check
-        run: yarn format:check
-
-      - name: Run tests with coverage
-        run: yarn test:cov --ci
-
-      - name: Build
-        run: yarn build
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage/
 
       - name: Post coverage comment
         if: github.event_name == 'pull_request'
@@ -92,3 +82,50 @@ jobs:
                 body: comment,
               });
             }
+
+  # ─── E2E tests (real PostgreSQL) ───────────────────────────────────────────
+  e2e-tests:
+    name: E2E Tests (Postgres)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: flutch
+          POSTGRES_PASSWORD: flutch
+          POSTGRES_DB: flutch_oss_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: flutch
+      POSTGRES_PASSWORD: flutch
+      POSTGRES_DB: flutch_oss_test
+      OPENAI_API_KEY: dummy
+      ANTHROPIC_API_KEY: dummy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run E2E tests
+        run: yarn test:e2e

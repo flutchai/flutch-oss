@@ -5,6 +5,9 @@ import { APP_INTERCEPTOR } from "@nestjs/core";
 import { LoggingInterceptor } from "./logging.interceptor";
 import { AgentV1Builder } from "./graph";
 import { EngineModule } from "./modules/engine/engine.module";
+import { DatabaseModule } from "./modules/database/database.module";
+import { PlatformConnectorModule } from "./modules/platform-connector/platform-connector.module";
+import { CheckpointerModule } from "./modules/checkpointer/checkpointer.module";
 import {
   BaseGraphServiceController,
   BuilderRegistryService,
@@ -36,9 +39,11 @@ const logger = new Logger("AppModule");
           defaultVersionStrategy: "latest",
         },
       ],
-      mongodb: {},
     }),
+    CheckpointerModule,
     EngineModule,
+    DatabaseModule,
+    PlatformConnectorModule,
   ],
   controllers: [BaseGraphServiceController],
   providers: [

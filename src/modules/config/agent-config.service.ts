@@ -43,9 +43,39 @@ export class AgentConfigService {
     }
   }
 
+  async getConfig(agentId: string): Promise<AgentConfig> {
+    return this.mode === "platform" ? this.fetchFromPlatform(agentId) : this.getFromLocal(agentId);
+  }
+
+  async resolveByWidgetKey(widgetKey: string): Promise<AgentConfig> {
+    if (this.mode === "local") {
+      const found = Object.values(this.localConfigs).find(
+        cfg => cfg.platforms?.widget?.widgetKey === widgetKey
+      );
+      if (!found) {
+        throw new NotFoundException(`No agent found for widgetKey "${widgetKey}"`);
+      }
+      return found;
+    }
+
+    const apiUrl = this.configService.get<string>("API_URL");
+    const token = this.configService.get<string>("INTERNAL_API_TOKEN");
+
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${apiUrl}/agents/by-widget-key/${widgetKey}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      );
+      return data;
+    } catch (error) {
+      this.logger.error(`Failed to resolve agent for widgetKey "${widgetKey}": ${error.message}`);
+      throw new NotFoundException(`No agent found for widgetKey "${widgetKey}"`);
+    }
+  }
+
   async resolve(agentId: string, userId: string): Promise<ResolvedAgentContext> {
-    const agentConfig =
-      this.mode === "platform" ? await this.fetchFromPlatform(agentId) : this.getFromLocal(agentId);
+    const agentConfig = await this.getConfig(agentId);
 
     const threadId = `${agentId}:${userId}`;
 
@@ -92,7 +122,10 @@ export class AgentConfigService {
     }
 
     const content = fs.readFileSync(configPath, "utf-8");
-    this.localConfigs = JSON.parse(content);
+    const raw = JSON.parse(content);
+    for (const [agentId, cfg] of Object.entries(raw) as [string, any][]) {
+      this.localConfigs[agentId] = { ...cfg, agentId };
+    }
     this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
   }
 }

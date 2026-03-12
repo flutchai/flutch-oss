@@ -8,3 +8,4 @@ dist/
 *.log
 coverage/
 agents.json
+CLAUDE.local.md
