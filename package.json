@@ -80,10 +80,17 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "moduleNameMapper": {
-      "^uuid$": "<rootDir>/../node_modules/uuid/dist/index.js"
+      "^uuid$": "<rootDir>/../node_modules/@langchain/langgraph-checkpoint/node_modules/uuid/dist/index.js"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/*.module.ts",
+      "!**/migrations/**",
+      "!**/main.ts",
+      "!**/data-source.ts",
+      "!**/*.entity.ts",
+      "!**/*.enum.ts",
+      "!**/index.ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"

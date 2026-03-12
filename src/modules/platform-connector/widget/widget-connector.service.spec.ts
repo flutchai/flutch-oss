@@ -6,6 +6,7 @@ import { UserService } from "../user.service";
 import { ThreadService } from "../thread.service";
 import { Platform } from "../../database/entities/platform.enum";
 import { MessageDirection } from "../../database/entities/message.entity";
+import { WidgetMessageDto } from "./widget.types";
 
 const mockUser = {
   id: "user-uuid-1",
@@ -310,6 +311,39 @@ describe("WidgetConnectorService", () => {
 
       expect(res.write).toHaveBeenCalledWith("event: error\ndata: engine failure\n\n");
       expect(res.end).toHaveBeenCalled();
+    });
+
+    it("uses accumulated fullText when result.text is not returned", async () => {
+      seedSession(service, "tok-noresult", "fp-noresult");
+      userService.findOrCreateByIdentity.mockResolvedValue(mockUser);
+      threadService.findOrCreate.mockResolvedValue(mockThread);
+      agentConfigService.resolveByWidgetKey.mockResolvedValue(mockConfig);
+      agentConfigService.resolve.mockResolvedValue(mockContext);
+      threadService.saveMessage.mockResolvedValue({} as any);
+
+      // streamAnswer accumulates chunks via callback but returns result with no text
+      graphService.streamAnswer.mockImplementation(async (_payload, cb) => {
+        cb("chunk1");
+        cb("chunk2");
+        return { text: undefined } as any; // result.text is undefined → fallback to fullText
+      });
+
+      const dto: WidgetMessageDto = {
+        widgetKey: "wk_test",
+        sessionToken: "tok-noresult",
+        text: "hi",
+      };
+      const req = makeMockReq();
+      const res = makeMockRes();
+
+      await service.sendMessage(dto, req as any, res as any);
+
+      // The outgoing message saved should be the accumulated chunks
+      expect(threadService.saveMessage).toHaveBeenLastCalledWith(
+        mockThread.id,
+        "chunk1chunk2",
+        MessageDirection.OUTGOING
+      );
     });
   });
 });

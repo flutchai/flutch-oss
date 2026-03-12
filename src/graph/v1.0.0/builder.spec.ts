@@ -139,4 +139,30 @@ describe("AgentV1Builder", () => {
       expect(compileSpy).toHaveBeenLastCalledWith({ checkpointer: mockCheckpointer });
     });
   });
+
+  describe("generateNode — graph invocation", () => {
+    it("returns text from model response", async () => {
+      const { HumanMessage } = await import("@langchain/core/messages");
+      const builder = new AgentV1Builder(null);
+      const graph = await builder.buildGraph(basePayload);
+      const result = await graph.invoke({ messages: [new HumanMessage("hello")] });
+      expect(result.text).toBe("test response");
+    });
+
+    it("prepends SystemMessage when systemPrompt is set", async () => {
+      const { HumanMessage } = await import("@langchain/core/messages");
+      const builder = new AgentV1Builder(null);
+      const graph = await builder.buildGraph({
+        ...basePayload,
+        config: {
+          configurable: {
+            thread_id: "t-1",
+            graphSettings: { model: "gpt-4o-mini", systemPrompt: "Be a roofing expert." },
+          },
+        },
+      });
+      const result = await graph.invoke({ messages: [new HumanMessage("hello")] });
+      expect(result.text).toBe("test response");
+    });
+  });
 });
