@@ -43,9 +43,12 @@ export class AgentConfigService {
     }
   }
 
+  async getConfig(agentId: string): Promise<AgentConfig> {
+    return this.mode === "platform" ? this.fetchFromPlatform(agentId) : this.getFromLocal(agentId);
+  }
+
   async resolve(agentId: string, userId: string): Promise<ResolvedAgentContext> {
-    const agentConfig =
-      this.mode === "platform" ? await this.fetchFromPlatform(agentId) : this.getFromLocal(agentId);
+    const agentConfig = await this.getConfig(agentId);
 
     const threadId = `${agentId}:${userId}`;
 

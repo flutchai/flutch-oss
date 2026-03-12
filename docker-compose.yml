@@ -6,24 +6,31 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI}
-      - MONGO_DB_NAME=${MONGO_DB_NAME:-flutch-oss}
       - API_URL=${API_URL}
       - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-flutch}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-flutch}
+      - POSTGRES_DB=${POSTGRES_DB:-flutch_oss}
     depends_on:
-      - mongodb
+      - postgres
       - ragflow
     restart: unless-stopped
 
-  # MongoDB for graph checkpoints
-  mongodb:
-    image: mongo:7
+  # PostgreSQL — single instance, separate DB per service
+  postgres:
+    image: postgres:16-alpine
     ports:
-      - "27017:27017"
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flutch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flutch}
+      POSTGRES_DB: ${POSTGRES_DB:-flutch_oss}
     volumes:
-      - mongodb_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
   # Ragflow for knowledge base
@@ -55,6 +62,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  mongodb_data:
+  postgres_data:
   ragflow_data:
   prometheus_data:
