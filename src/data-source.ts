@@ -10,6 +10,8 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { Thread } from "./modules/database/entities/thread.entity";
 import { Message } from "./modules/database/entities/message.entity";
+import { User } from "./modules/database/entities/user.entity";
+import { UserIdentity } from "./modules/database/entities/user-identity.entity";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
@@ -18,7 +20,7 @@ export const AppDataSource = new DataSource({
   username: process.env.POSTGRES_USER ?? "flutch",
   password: process.env.POSTGRES_PASSWORD ?? "flutch",
   database: process.env.POSTGRES_DB ?? "flutch_oss",
-  entities: [Thread, Message],
+  entities: [User, UserIdentity, Thread, Message],
   migrations: ["src/migrations/*.ts"],
   synchronize: false,
 });
