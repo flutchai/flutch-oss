@@ -65,7 +65,10 @@ describe("AgentV1Builder", () => {
 
     it("uses model from graphSettings", async () => {
       await builder.buildGraph(basePayload);
-      expect(modelFactory.createModel).toHaveBeenCalledWith({ model: "gpt-4o-mini", graphType: "flutch.agent::1.0.0" });
+      expect(modelFactory.createModel).toHaveBeenCalledWith({
+        model: "gpt-4o-mini",
+        graphType: "flutch.agent::1.0.0",
+      });
     });
 
     it("applies default model gpt-4o-mini when model is absent", async () => {

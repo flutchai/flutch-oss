@@ -26,9 +26,7 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
   readonly version = "1.0.0" as const;
   protected readonly logger = new Logger(AgentV1Builder.name);
 
-  constructor(
-    @Optional() @Inject(CHECKPOINTER) private readonly checkpointer: any,
-  ) {
+  constructor(@Optional() @Inject(CHECKPOINTER) private readonly checkpointer: any) {
     super();
   }
 

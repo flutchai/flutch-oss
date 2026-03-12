@@ -42,7 +42,9 @@ export class AddUsersAndIdentities1741870000000 implements MigrationInterface {
     // 4. Migrate threads.user_id from VARCHAR to UUID FK
     //    For each unique user_id string in threads, create a user + identity row,
     //    then update the thread to point at the new user UUID.
-    await queryRunner.query(`ALTER TABLE "threads" DROP CONSTRAINT "UQ_threads_agent_user_platform"`);
+    await queryRunner.query(
+      `ALTER TABLE "threads" DROP CONSTRAINT "UQ_threads_agent_user_platform"`
+    );
     await queryRunner.query(`ALTER TABLE "threads" ADD COLUMN "user_id_new" UUID`);
 
     // Create a user + identity for every existing thread user_id (platform-specific string)
@@ -86,7 +88,9 @@ export class AddUsersAndIdentities1741870000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Reverse: restore user_id as VARCHAR
-    await queryRunner.query(`ALTER TABLE "threads" DROP CONSTRAINT "UQ_threads_agent_user_platform"`);
+    await queryRunner.query(
+      `ALTER TABLE "threads" DROP CONSTRAINT "UQ_threads_agent_user_platform"`
+    );
     await queryRunner.query(`ALTER TABLE "threads" DROP CONSTRAINT "FK_threads_user_id"`);
     await queryRunner.query(`ALTER TABLE "threads" ADD COLUMN "user_id_old" VARCHAR`);
 
@@ -106,7 +110,9 @@ export class AddUsersAndIdentities1741870000000 implements MigrationInterface {
         UNIQUE ("agent_id", "user_id", "platform")
     `);
 
-    await queryRunner.query(`ALTER TABLE "user_identities" DROP CONSTRAINT "FK_user_identities_user_id"`);
+    await queryRunner.query(
+      `ALTER TABLE "user_identities" DROP CONSTRAINT "FK_user_identities_user_id"`
+    );
     await queryRunner.query(`DROP TABLE "user_identities"`);
     await queryRunner.query(`DROP TABLE "users"`);
   }

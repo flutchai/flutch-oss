@@ -11,10 +11,7 @@ describe("TelegramApiClient", () => {
     httpService = { post: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TelegramApiClient,
-        { provide: HttpService, useValue: httpService },
-      ],
+      providers: [TelegramApiClient, { provide: HttpService, useValue: httpService }],
     }).compile();
 
     client = module.get<TelegramApiClient>(TelegramApiClient);

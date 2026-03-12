@@ -116,7 +116,7 @@ describe("ThreadService", () => {
       await service.saveMessage("thread-uuid", "AI response", MessageDirection.OUTGOING);
 
       expect(messageRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ direction: MessageDirection.OUTGOING }),
+        expect.objectContaining({ direction: MessageDirection.OUTGOING })
       );
     });
   });

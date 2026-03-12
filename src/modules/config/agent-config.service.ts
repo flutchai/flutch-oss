@@ -50,7 +50,7 @@ export class AgentConfigService {
   async resolveByWidgetKey(widgetKey: string): Promise<AgentConfig> {
     if (this.mode === "local") {
       const found = Object.values(this.localConfigs).find(
-        (cfg) => cfg.platforms?.widget?.widgetKey === widgetKey,
+        cfg => cfg.platforms?.widget?.widgetKey === widgetKey
       );
       if (!found) {
         throw new NotFoundException(`No agent found for widgetKey "${widgetKey}"`);
@@ -65,7 +65,7 @@ export class AgentConfigService {
       const { data } = await firstValueFrom(
         this.httpService.get(`${apiUrl}/agents/by-widget-key/${widgetKey}`, {
           headers: { Authorization: `Bearer ${token}` },
-        }),
+        })
       );
       return data;
     } catch (error) {

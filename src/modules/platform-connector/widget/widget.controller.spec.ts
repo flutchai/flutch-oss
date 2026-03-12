@@ -7,10 +7,10 @@ const mockInitResponse = { threadId: "thread-uuid-1", sessionToken: "tok-abc" };
 
 function makeMockRes() {
   return {
-    set:          jest.fn(),
+    set: jest.fn(),
     flushHeaders: jest.fn(),
-    write:        jest.fn(),
-    end:          jest.fn(),
+    write: jest.fn(),
+    end: jest.fn(),
   };
 }
 
@@ -20,7 +20,7 @@ describe("WidgetController", () => {
 
   beforeEach(async () => {
     service = {
-      init:        jest.fn().mockResolvedValue(mockInitResponse),
+      init: jest.fn().mockResolvedValue(mockInitResponse),
       sendMessage: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -41,7 +41,7 @@ describe("WidgetController", () => {
   describe("POST /public/widget/init", () => {
     it("returns threadId and sessionToken", async () => {
       const result = await controller.init({
-        widgetKey:   "wk_test",
+        widgetKey: "wk_test",
         fingerprint: "fp-abc",
       });
 
@@ -56,7 +56,7 @@ describe("WidgetController", () => {
     it("propagates BadRequestException from service", async () => {
       service.init.mockRejectedValue(new BadRequestException("bad threadId"));
       await expect(
-        controller.init({ widgetKey: "wk_test", fingerprint: "fp", threadId: "wrong" }),
+        controller.init({ widgetKey: "wk_test", fingerprint: "fp", threadId: "wrong" })
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -68,12 +68,14 @@ describe("WidgetController", () => {
 
       await controller.message(
         { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Привет" },
-        req as any, res as any,
+        req as any,
+        res as any
       );
 
       expect(service.sendMessage).toHaveBeenCalledWith(
         { widgetKey: "wk_test", threadId: "thread-uuid-1", text: "Привет" },
-        req, res,
+        req,
+        res
       );
     });
 
@@ -83,7 +85,8 @@ describe("WidgetController", () => {
 
       await controller.message(
         { widgetKey: "wk_test", threadId: "t1", text: "test" },
-        req as any, res as any,
+        req as any,
+        res as any
       );
 
       // headers are the service's responsibility — controller just delegates

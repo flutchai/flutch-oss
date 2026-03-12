@@ -9,8 +9,20 @@ import { Platform } from "../../database/entities/thread.entity";
 import { MessageDirection } from "../../database/entities/message.entity";
 import { TelegramUpdate } from "./telegram.types";
 
-const mockUser = { id: "user-uuid-1", identities: [], threads: [], createdAt: new Date(), updatedAt: new Date() };
-const mockThread = { id: "thread-uuid", agentId: "roofing-agent", userId: mockUser.id, platform: Platform.TELEGRAM, createdAt: new Date() };
+const mockUser = {
+  id: "user-uuid-1",
+  identities: [],
+  threads: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+const mockThread = {
+  id: "thread-uuid",
+  agentId: "roofing-agent",
+  userId: mockUser.id,
+  platform: Platform.TELEGRAM,
+  createdAt: new Date(),
+};
 const mockContext = {
   agentId: "roofing-agent",
   userId: mockUser.id,
@@ -65,7 +77,10 @@ describe("TelegramConnectorService", () => {
         },
         { provide: UserService, useValue: userService },
         { provide: ThreadService, useValue: threadService },
-        { provide: TelegramApiClient, useValue: { sendMessage: jest.fn().mockResolvedValue(undefined) } },
+        {
+          provide: TelegramApiClient,
+          useValue: { sendMessage: jest.fn().mockResolvedValue(undefined) },
+        },
         { provide: ConfigService, useValue: configService },
         { provide: "GRAPH_SERVICE", useValue: graphService },
       ],
@@ -115,7 +130,7 @@ describe("TelegramConnectorService", () => {
       };
       await service.handleUpdate("roofing-agent", cbUpdate);
       expect(graphService.generateAnswer).toHaveBeenCalledWith(
-        expect.objectContaining({ input: "button_clicked" }),
+        expect.objectContaining({ input: "button_clicked" })
       );
     });
 
@@ -139,7 +154,7 @@ describe("TelegramConnectorService", () => {
       expect(userService.findOrCreateByIdentity).toHaveBeenCalledWith(
         Platform.TELEGRAM,
         "111111",
-        expect.objectContaining({ firstName: "Ivan", username: "ivan_test" }),
+        expect.objectContaining({ firstName: "Ivan", username: "ivan_test" })
       );
     });
 
@@ -148,7 +163,7 @@ describe("TelegramConnectorService", () => {
       expect(threadService.findOrCreate).toHaveBeenCalledWith(
         "roofing-agent",
         mockUser,
-        Platform.TELEGRAM,
+        Platform.TELEGRAM
       );
     });
 
@@ -161,7 +176,7 @@ describe("TelegramConnectorService", () => {
               context: expect.objectContaining({ userId: mockUser.id }),
             }),
           }),
-        }),
+        })
       );
     });
   });
@@ -188,7 +203,7 @@ describe("TelegramConnectorService", () => {
       expect(threadService.saveMessage).toHaveBeenCalledWith(
         "thread-uuid",
         "Кровля стоит 500$",
-        MessageDirection.OUTGOING,
+        MessageDirection.OUTGOING
       );
     });
 
@@ -199,7 +214,7 @@ describe("TelegramConnectorService", () => {
           config: expect.objectContaining({
             configurable: expect.objectContaining({ thread_id: "thread-uuid" }),
           }),
-        }),
+        })
       );
     });
   });
@@ -219,7 +234,7 @@ describe("TelegramConnectorService", () => {
               metadata: expect.objectContaining({ platform: "telegram" }),
             }),
           }),
-        }),
+        })
       );
     });
 
@@ -237,7 +252,7 @@ describe("TelegramConnectorService", () => {
       expect(telegramApiClient.sendMessage).toHaveBeenCalledWith(
         "config-bot-token",
         111111,
-        "Кровля стоит 500$",
+        "Кровля стоит 500$"
       );
     });
   });
@@ -245,21 +260,32 @@ describe("TelegramConnectorService", () => {
   describe("resolveBotToken", () => {
     it("prefers per-agent env var over config file", async () => {
       configService.get.mockImplementation((key: string) =>
-        key === "TELEGRAM_BOT_TOKEN_ROOFING_AGENT" ? "env-token" : undefined,
+        key === "TELEGRAM_BOT_TOKEN_ROOFING_AGENT" ? "env-token" : undefined
       );
       await service.handleUpdate("roofing-agent", textUpdate);
-      expect(telegramApiClient.sendMessage).toHaveBeenCalledWith("env-token", 111111, expect.any(String));
+      expect(telegramApiClient.sendMessage).toHaveBeenCalledWith(
+        "env-token",
+        111111,
+        expect.any(String)
+      );
     });
 
     it("falls back to config file token when no env var", async () => {
       await service.handleUpdate("roofing-agent", textUpdate);
-      expect(telegramApiClient.sendMessage).toHaveBeenCalledWith("config-bot-token", 111111, expect.any(String));
+      expect(telegramApiClient.sendMessage).toHaveBeenCalledWith(
+        "config-bot-token",
+        111111,
+        expect.any(String)
+      );
     });
 
     it("throws when no token is configured", async () => {
-      (agentConfigService.getConfig as jest.Mock).mockResolvedValue({ ...mockConfig, platforms: undefined });
+      (agentConfigService.getConfig as jest.Mock).mockResolvedValue({
+        ...mockConfig,
+        platforms: undefined,
+      });
       await expect(service.handleUpdate("roofing-agent", textUpdate)).rejects.toThrow(
-        'No Telegram bot token configured for agent "roofing-agent"',
+        'No Telegram bot token configured for agent "roofing-agent"'
       );
     });
   });

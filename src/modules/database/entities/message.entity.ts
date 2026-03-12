@@ -18,7 +18,7 @@ export class Message {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @ManyToOne(() => Thread, (thread) => thread.messages, { onDelete: "CASCADE" })
+  @ManyToOne(() => Thread, thread => thread.messages, { onDelete: "CASCADE" })
   @JoinColumn({ name: "thread_id" })
   thread: Thread;
 

@@ -6,7 +6,13 @@ import { User } from "../database/entities/user.entity";
 import { UserIdentity } from "../database/entities/user-identity.entity";
 import { Platform } from "../database/entities/thread.entity";
 
-const mockUser = (id = "user-uuid-1"): User => ({ id, identities: [], threads: [], createdAt: new Date(), updatedAt: new Date() });
+const mockUser = (id = "user-uuid-1"): User => ({
+  id,
+  identities: [],
+  threads: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
 const mockIdentity = (userId = "user-uuid-1"): UserIdentity => ({
   id: "identity-uuid-1",
   userId,
@@ -55,7 +61,6 @@ describe("UserService", () => {
 
   describe("findOrCreateByIdentity", () => {
     it("returns existing user when identity is found", async () => {
-      const user = mockUser();
       const identity = mockIdentity();
       identityRepo.findOne.mockResolvedValue(identity);
 
@@ -77,7 +82,7 @@ describe("UserService", () => {
       await service.findOrCreateByIdentity(Platform.TELEGRAM, "12345", { firstName: "Ivan" });
 
       expect(identityRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ metadata: expect.objectContaining({ firstName: "Ivan" }) }),
+        expect.objectContaining({ metadata: expect.objectContaining({ firstName: "Ivan" }) })
       );
     });
 
@@ -94,10 +99,16 @@ describe("UserService", () => {
       identityRepo.findOne.mockResolvedValue(null);
       userRepo.create.mockReturnValue({ id: undefined });
       userRepo.save.mockResolvedValue(newUser);
-      identityRepo.create.mockReturnValue({ userId: newUser.id, platform: Platform.TELEGRAM, externalId: "99999" });
+      identityRepo.create.mockReturnValue({
+        userId: newUser.id,
+        platform: Platform.TELEGRAM,
+        externalId: "99999",
+      });
       identityRepo.save.mockResolvedValue({});
 
-      const result = await service.findOrCreateByIdentity(Platform.TELEGRAM, "99999", { firstName: "Maria" });
+      const result = await service.findOrCreateByIdentity(Platform.TELEGRAM, "99999", {
+        firstName: "Maria",
+      });
 
       expect(userRepo.save).toHaveBeenCalled();
       expect(identityRepo.create).toHaveBeenCalledWith({
@@ -120,9 +131,7 @@ describe("UserService", () => {
 
       await service.findOrCreateByIdentity(Platform.WIDGET, "fingerprint-abc");
 
-      expect(identityRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ metadata: null }),
-      );
+      expect(identityRepo.create).toHaveBeenCalledWith(expect.objectContaining({ metadata: null }));
     });
   });
 
@@ -137,25 +146,27 @@ describe("UserService", () => {
       const source = { ...mockUser("source-id"), identities: [mockIdentity("source-id")] };
       const target = mockUser("target-id");
 
-      userRepo.findOne
-        .mockResolvedValueOnce(source)
-        .mockResolvedValueOnce(target);
+      userRepo.findOne.mockResolvedValueOnce(source).mockResolvedValueOnce(target);
       identityRepo.update.mockResolvedValue({});
       mockThreadsRepo.update.mockResolvedValue({});
       userRepo.delete.mockResolvedValue({});
 
       await service.mergeUsers("source-id", "target-id");
 
-      expect(identityRepo.update).toHaveBeenCalledWith({ userId: "source-id" }, { userId: "target-id" });
-      expect(mockThreadsRepo.update).toHaveBeenCalledWith({ userId: "source-id" }, { userId: "target-id" });
+      expect(identityRepo.update).toHaveBeenCalledWith(
+        { userId: "source-id" },
+        { userId: "target-id" }
+      );
+      expect(mockThreadsRepo.update).toHaveBeenCalledWith(
+        { userId: "source-id" },
+        { userId: "target-id" }
+      );
       expect(userRepo.delete).toHaveBeenCalledWith("source-id");
     });
 
     it("skips identity update when source has no identities", async () => {
       const source = { ...mockUser("source-id"), identities: [] };
-      userRepo.findOne
-        .mockResolvedValueOnce(source)
-        .mockResolvedValueOnce(mockUser("target-id"));
+      userRepo.findOne.mockResolvedValueOnce(source).mockResolvedValueOnce(mockUser("target-id"));
       mockThreadsRepo.update.mockResolvedValue({});
       userRepo.delete.mockResolvedValue({});
 
@@ -166,17 +177,13 @@ describe("UserService", () => {
     });
 
     it("throws NotFoundException when source user does not exist", async () => {
-      userRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(mockUser("target-id"));
+      userRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(mockUser("target-id"));
 
       await expect(service.mergeUsers("ghost-id", "target-id")).rejects.toThrow(NotFoundException);
     });
 
     it("throws NotFoundException when target user does not exist", async () => {
-      userRepo.findOne
-        .mockResolvedValueOnce(mockUser("source-id"))
-        .mockResolvedValueOnce(null);
+      userRepo.findOne.mockResolvedValueOnce(mockUser("source-id")).mockResolvedValueOnce(null);
 
       await expect(service.mergeUsers("source-id", "ghost-id")).rejects.toThrow(NotFoundException);
     });

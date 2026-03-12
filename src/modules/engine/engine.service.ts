@@ -18,8 +18,7 @@ export class EngineService {
 
     this.logger.debug(`Resolved context for agent "${agentId}": threadId=${context.threadId}`);
 
-    const graphInput =
-      typeof input === "string" ? { messages: [new HumanMessage(input)] } : input;
+    const graphInput = typeof input === "string" ? { messages: [new HumanMessage(input)] } : input;
 
     return {
       requestId: requestId ?? uuidv4(),

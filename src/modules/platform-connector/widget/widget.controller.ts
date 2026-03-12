@@ -19,7 +19,7 @@ export class WidgetController {
   async message(
     @Body() dto: WidgetMessageDto,
     @Req() req: Request,
-    @Res() res: Response,
+    @Res() res: Response
   ): Promise<void> {
     await this.widgetConnectorService.sendMessage(dto, req, res);
   }

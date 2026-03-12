@@ -13,7 +13,7 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserIdentity)
-    private readonly identityRepo: Repository<UserIdentity>,
+    private readonly identityRepo: Repository<UserIdentity>
   ) {}
 
   /**
@@ -23,7 +23,7 @@ export class UserService {
   async findOrCreateByIdentity(
     platform: Platform,
     externalId: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, any>
   ): Promise<User> {
     let identity = await this.identityRepo.findOne({
       where: { platform, externalId },
@@ -39,7 +39,12 @@ export class UserService {
     }
 
     const user = await this.userRepo.save(this.userRepo.create());
-    identity = this.identityRepo.create({ userId: user.id, platform, externalId, metadata: metadata ?? null });
+    identity = this.identityRepo.create({
+      userId: user.id,
+      platform,
+      externalId,
+      metadata: metadata ?? null,
+    });
     await this.identityRepo.save(identity);
 
     this.logger.debug(`Created user ${user.id} with identity ${platform}:${externalId}`);
@@ -69,7 +74,9 @@ export class UserService {
     }
 
     // Reassign all threads to target (FK update)
-    await this.userRepo.manager.getRepository("threads").update({ userId: sourceUserId }, { userId: targetUserId });
+    await this.userRepo.manager
+      .getRepository("threads")
+      .update({ userId: sourceUserId }, { userId: targetUserId });
 
     await this.userRepo.delete(sourceUserId);
     this.logger.log(`Merged user ${sourceUserId} into ${targetUserId}`);

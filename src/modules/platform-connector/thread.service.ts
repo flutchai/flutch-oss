@@ -13,7 +13,7 @@ export class ThreadService {
     @InjectRepository(Thread)
     private readonly threadRepo: Repository<Thread>,
     @InjectRepository(Message)
-    private readonly messageRepo: Repository<Message>,
+    private readonly messageRepo: Repository<Message>
   ) {}
 
   /**
@@ -30,7 +30,11 @@ export class ThreadService {
     return thread;
   }
 
-  async saveMessage(threadId: string, content: string, direction: MessageDirection): Promise<Message> {
+  async saveMessage(
+    threadId: string,
+    content: string,
+    direction: MessageDirection
+  ): Promise<Message> {
     const message = this.messageRepo.create({ threadId, content, direction });
     return this.messageRepo.save(message);
   }

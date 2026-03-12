@@ -26,7 +26,7 @@ export class Thread {
   @Column({ name: "agent_id" })
   agentId: string;
 
-  @ManyToOne(() => User, (user) => user.threads, { onDelete: "CASCADE" })
+  @ManyToOne(() => User, user => user.threads, { onDelete: "CASCADE" })
   @JoinColumn({ name: "user_id" })
   user: User;
 
@@ -40,6 +40,6 @@ export class Thread {
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
 
-  @OneToMany(() => Message, (message) => message.thread)
+  @OneToMany(() => Message, message => message.thread)
   messages: Message[];
 }

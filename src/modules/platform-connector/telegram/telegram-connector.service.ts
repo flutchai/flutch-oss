@@ -21,7 +21,7 @@ export class TelegramConnectorService {
     private readonly threadService: ThreadService,
     private readonly telegramApiClient: TelegramApiClient,
     private readonly configService: ConfigService,
-    @Inject("GRAPH_SERVICE") private readonly graphService: IGraphService,
+    @Inject("GRAPH_SERVICE") private readonly graphService: IGraphService
   ) {}
 
   async handleUpdate(agentId: string, update: TelegramUpdate): Promise<void> {
@@ -52,7 +52,7 @@ export class TelegramConnectorService {
             username: from.username,
             languageCode: from.language_code,
           }
-        : undefined,
+        : undefined
     );
 
     // Persist: find or create thread, save incoming message

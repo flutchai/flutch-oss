@@ -13,10 +13,10 @@ export class User {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @OneToMany(() => UserIdentity, (identity) => identity.user, { cascade: true })
+  @OneToMany(() => UserIdentity, identity => identity.user, { cascade: true })
   identities: UserIdentity[];
 
-  @OneToMany(() => Thread, (thread) => thread.user)
+  @OneToMany(() => Thread, thread => thread.user)
   threads: Thread[];
 
   @CreateDateColumn({ name: "created_at" })

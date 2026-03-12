@@ -18,22 +18,19 @@ export class WidgetConnectorService {
     private readonly agentConfigService: AgentConfigService,
     private readonly userService: UserService,
     private readonly threadService: ThreadService,
-    @Inject("GRAPH_SERVICE") private readonly graphService: IGraphService,
+    @Inject("GRAPH_SERVICE") private readonly graphService: IGraphService
   ) {}
 
   async init(dto: WidgetInitDto): Promise<WidgetInitResponse> {
     const agentConfig = await this.agentConfigService.resolveByWidgetKey(dto.widgetKey);
 
-    const user = await this.userService.findOrCreateByIdentity(
-      Platform.WIDGET,
-      dto.fingerprint,
-    );
+    const user = await this.userService.findOrCreateByIdentity(Platform.WIDGET, dto.fingerprint);
 
-    let thread = await this.threadService.findOrCreate(agentConfig.agentId, user, Platform.WIDGET);
+    const thread = await this.threadService.findOrCreate(agentConfig.agentId, user, Platform.WIDGET);
 
     if (dto.threadId && dto.threadId !== thread.id) {
       throw new BadRequestException(
-        `threadId "${dto.threadId}" does not belong to this agent/user`,
+        `threadId "${dto.threadId}" does not belong to this agent/user`
       );
     }
 
@@ -47,7 +44,7 @@ export class WidgetConnectorService {
     res.set({
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     });
     res.flushHeaders();
@@ -67,7 +64,11 @@ export class WidgetConnectorService {
       const agentConfig = await this.agentConfigService.resolveByWidgetKey(dto.widgetKey);
 
       const user = await this.userService.findOrCreateByIdentity(Platform.WIDGET, dto.threadId);
-      const thread = await this.threadService.findOrCreate(agentConfig.agentId, user, Platform.WIDGET);
+      const thread = await this.threadService.findOrCreate(
+        agentConfig.agentId,
+        user,
+        Platform.WIDGET
+      );
 
       await this.threadService.saveMessage(thread.id, dto.text, MessageDirection.INCOMING);
 
@@ -92,13 +93,10 @@ export class WidgetConnectorService {
 
       let fullText = "";
 
-      const result = await this.graphService.streamAnswer(
-        payload,
-        (chunk: string) => {
-          fullText += chunk;
-          writeEvent("partial", chunk);
-        },
-      );
+      const result = await this.graphService.streamAnswer(payload, (chunk: string) => {
+        fullText += chunk;
+        writeEvent("partial", chunk);
+      });
 
       const finalText = result?.text ?? fullText;
       await this.threadService.saveMessage(thread.id, finalText, MessageDirection.OUTGOING);

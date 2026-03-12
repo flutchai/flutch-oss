@@ -40,7 +40,7 @@ describe("CheckpointerService", () => {
     it("creates PostgresSaver from DATABASE_URL", () => {
       expect(PostgresSaver.fromConnString).toHaveBeenCalledWith(
         "postgresql://localhost:5432/test",
-        { schema: "public" },
+        { schema: "public" }
       );
     });
 
@@ -65,12 +65,13 @@ describe("CheckpointerService", () => {
   describe("error handling", () => {
     it("throws if DATABASE_URL is not configured", () => {
       (PostgresSaver.fromConnString as jest.Mock).mockClear();
-      expect(() =>
-        new CheckpointerService({
-          getOrThrow: jest.fn().mockImplementation(() => {
-            throw new Error("DATABASE_URL is not defined");
-          }),
-        } as any),
+      expect(
+        () =>
+          new CheckpointerService({
+            getOrThrow: jest.fn().mockImplementation(() => {
+              throw new Error("DATABASE_URL is not defined");
+            }),
+          } as any)
       ).toThrow("DATABASE_URL is not defined");
     });
 
