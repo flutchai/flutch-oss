@@ -47,6 +47,33 @@ export class AgentConfigService {
     return this.mode === "platform" ? this.fetchFromPlatform(agentId) : this.getFromLocal(agentId);
   }
 
+  async resolveByWidgetKey(widgetKey: string): Promise<AgentConfig> {
+    if (this.mode === "local") {
+      const found = Object.values(this.localConfigs).find(
+        (cfg) => cfg.platforms?.widget?.widgetKey === widgetKey,
+      );
+      if (!found) {
+        throw new NotFoundException(`No agent found for widgetKey "${widgetKey}"`);
+      }
+      return found;
+    }
+
+    const apiUrl = this.configService.get<string>("API_URL");
+    const token = this.configService.get<string>("INTERNAL_API_TOKEN");
+
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${apiUrl}/agents/by-widget-key/${widgetKey}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      );
+      return data;
+    } catch (error) {
+      this.logger.error(`Failed to resolve agent for widgetKey "${widgetKey}": ${error.message}`);
+      throw new NotFoundException(`No agent found for widgetKey "${widgetKey}"`);
+    }
+  }
+
   async resolve(agentId: string, userId: string): Promise<ResolvedAgentContext> {
     const agentConfig = await this.getConfig(agentId);
 

@@ -12,6 +12,8 @@ import { ThreadService } from "./thread.service";
 import { TelegramWebhookController } from "./telegram/telegram-webhook.controller";
 import { TelegramConnectorService } from "./telegram/telegram-connector.service";
 import { TelegramApiClient } from "./telegram/telegram-api.client";
+import { WidgetController } from "./widget/widget.controller";
+import { WidgetConnectorService } from "./widget/widget-connector.service";
 
 @Module({
   imports: [
@@ -19,12 +21,13 @@ import { TelegramApiClient } from "./telegram/telegram-api.client";
     AgentConfigModule,
     TypeOrmModule.forFeature([User, UserIdentity, Thread, Message]),
   ],
-  controllers: [TelegramWebhookController],
+  controllers: [TelegramWebhookController, WidgetController],
   providers: [
     UserService,
     ThreadService,
     TelegramConnectorService,
     TelegramApiClient,
+    WidgetConnectorService,
     {
       provide: "GRAPH_SERVICE",
       useExisting: UniversalGraphService,
