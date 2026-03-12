@@ -27,6 +27,7 @@
     "@langchain/anthropic": "^0.3.0",
     "@langchain/core": "^1.1.30",
     "@langchain/langgraph": "^1.2.0",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.1",
     "@langchain/openai": "^1.0.0",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/common": "^10.0.0",

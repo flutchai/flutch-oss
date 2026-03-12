@@ -1,8 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { AbstractGraphBuilder, IGraphRequestPayload } from "@flutchai/flutch-sdk";
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 import { BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { createModel } from "./model.factory";
+import { CHECKPOINTER } from "../../modules/checkpointer/checkpointer.service";
 
 const AgentState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -20,6 +21,12 @@ const AgentState = Annotation.Root({
 export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
   readonly version = "1.0.0" as const;
   protected readonly logger = new Logger(AgentV1Builder.name);
+
+  constructor(
+    @Optional() @Inject(CHECKPOINTER) private readonly checkpointer: any,
+  ) {
+    super();
+  }
 
   get graphType(): string {
     return "flutch.agent::1.0.0";
@@ -50,6 +57,6 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
     workflow.addEdge(START, "generate");
     workflow.addEdge("generate", END);
 
-    return workflow.compile();
+    return workflow.compile({ checkpointer: this.checkpointer ?? undefined });
   }
 }

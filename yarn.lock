@@ -1194,6 +1194,7 @@ __metadata:
     "@langchain/anthropic": "npm:^0.3.0"
     "@langchain/core": "npm:^1.1.30"
     "@langchain/langgraph": "npm:^1.2.0"
+    "@langchain/langgraph-checkpoint-postgres": "npm:^1.0.1"
     "@langchain/openai": "npm:^1.0.0"
     "@nestjs/axios": "npm:^3.0.0"
     "@nestjs/cli": "npm:^10.0.0"
@@ -1743,6 +1744,18 @@ __metadata:
     "@langchain/core": ^1.0.1
     "@langchain/langgraph-checkpoint": ^1.0.0
   checksum: 10c0/32c03db17d09b0cde88fffb3023213069357ec14cb8a2bd9189e428e21ee804625f7f8b6d0e452061e17d4ad350a0a7e6a5495df92f8be2d69bffb23f3dc1fb1
+  languageName: node
+  linkType: hard
+
+"@langchain/langgraph-checkpoint-postgres@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@langchain/langgraph-checkpoint-postgres@npm:1.0.1"
+  dependencies:
+    pg: "npm:^8.12.0"
+  peerDependencies:
+    "@langchain/core": ^1.0.1
+    "@langchain/langgraph-checkpoint": ^1.0.0
+  checksum: 10c0/e6d68f5136cf42b29b8f8218924f0df95ffccd58a8fdddeff8a691a825803a0cfee34aa9d22968f88c5efe53bfb1218e00562fc84230adfb75df65e0f4bb0165
   languageName: node
   linkType: hard
 
@@ -7930,7 +7943,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pg@npm:^8.20.0":
+"pg@npm:^8.12.0, pg@npm:^8.20.0":
   version: 8.20.0
   resolution: "pg@npm:8.20.0"
   dependencies:
