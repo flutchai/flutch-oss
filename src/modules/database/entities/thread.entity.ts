@@ -25,8 +25,7 @@ export class Thread {
   @JoinColumn({ name: "user_id" })
   user: User;
 
-  /** Read-only scalar alias for the FK; writes go through the relation. */
-  @Column({ name: "user_id", type: "uuid", insert: false, update: false })
+  @Column({ name: "user_id", type: "uuid" })
   userId: string;
 
   @Column({ type: "enum", enum: Platform })

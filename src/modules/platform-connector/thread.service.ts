@@ -24,7 +24,7 @@ export class ThreadService {
   async findOrCreate(agentId: string, user: User, platform: Platform): Promise<Thread> {
     let thread = await this.threadRepo.findOne({ where: { agentId, userId: user.id, platform } });
     if (!thread) {
-      thread = this.threadRepo.create({ agentId, user, platform });
+      thread = this.threadRepo.create({ agentId, userId: user.id, platform });
       thread = await this.threadRepo.save(thread);
       this.logger.debug(`Created thread ${thread.id} for agent="${agentId}" user="${user.id}"`);
     }

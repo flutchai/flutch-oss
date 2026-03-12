@@ -84,7 +84,7 @@ describe("ThreadService", () => {
 
       expect(threadRepo.create).toHaveBeenCalledWith({
         agentId: "roofing-agent",
-        user: mockUser,
+        userId: mockUser.id,
         platform: Platform.TELEGRAM,
       });
       expect(threadRepo.save).toHaveBeenCalled();

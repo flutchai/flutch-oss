@@ -41,7 +41,7 @@ export class UserService {
 
     const user = await this.userRepo.save(this.userRepo.create());
     identity = this.identityRepo.create({
-      user,
+      userId: user.id,
       platform,
       externalId,
       metadata: metadata ?? null,

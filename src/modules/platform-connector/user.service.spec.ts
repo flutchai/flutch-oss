@@ -112,7 +112,7 @@ describe("UserService", () => {
 
       expect(userRepo.save).toHaveBeenCalled();
       expect(identityRepo.create).toHaveBeenCalledWith({
-        user: newUser,
+        userId: newUser.id,
         platform: Platform.TELEGRAM,
         externalId: "99999",
         metadata: { firstName: "Maria" },
