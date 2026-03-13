@@ -20,8 +20,10 @@ import { WidgetInitDto, WidgetInitResponse, WidgetMessageDto } from "./widget.ty
 export class WidgetConnectorService {
   private readonly logger = new Logger(WidgetConnectorService.name);
 
-  /** sessionToken → fingerprint. Cleared on service restart (MVP: in-memory only). */
-  private readonly sessions = new Map<string, string>();
+  /** sessionToken → { fingerprint, expiresAt }. Cleared on service restart (MVP: in-memory only). */
+  private readonly sessions = new Map<string, { fingerprint: string; expiresAt: number }>();
+  private readonly MAX_SESSIONS = 10_000;
+  private readonly SESSION_TTL_MS = 24 * 60 * 60 * 1_000; // 24 h
 
   constructor(
     private readonly agentConfigService: AgentConfigService,
@@ -47,8 +49,23 @@ export class WidgetConnectorService {
       );
     }
 
+    // Lazy TTL sweep: purge expired sessions before adding a new one
+    const now = Date.now();
+    for (const [token, session] of this.sessions) {
+      if (session.expiresAt <= now) this.sessions.delete(token);
+    }
+
+    // Hard cap: evict oldest entry when still over limit after TTL sweep
+    if (this.sessions.size >= this.MAX_SESSIONS) {
+      const oldest = this.sessions.keys().next().value;
+      if (oldest !== undefined) this.sessions.delete(oldest);
+    }
+
     const sessionToken = uuidv4();
-    this.sessions.set(sessionToken, dto.fingerprint);
+    this.sessions.set(sessionToken, {
+      fingerprint: dto.fingerprint,
+      expiresAt: now + this.SESSION_TTL_MS,
+    });
 
     return { threadId: thread.id, sessionToken };
   }
@@ -74,10 +91,12 @@ export class WidgetConnectorService {
     };
 
     try {
-      const fingerprint = this.sessions.get(dto.sessionToken);
-      if (!fingerprint) {
+      const session = this.sessions.get(dto.sessionToken);
+      if (!session || session.expiresAt <= Date.now()) {
+        this.sessions.delete(dto.sessionToken);
         throw new UnauthorizedException("Invalid or expired session token");
       }
+      const { fingerprint } = session;
 
       const agentConfig = await this.agentConfigService.resolveByWidgetKey(dto.widgetKey);
 

@@ -33,5 +33,6 @@ import { WidgetConnectorService } from "./widget/widget-connector.service";
       useExisting: UniversalGraphService,
     },
   ],
+  exports: [UserService, ThreadService],
 })
 export class PlatformConnectorModule {}

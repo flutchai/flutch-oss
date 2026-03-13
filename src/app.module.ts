@@ -3,11 +3,13 @@ import { HttpModule } from "@nestjs/axios";
 import { ConfigModule } from "@nestjs/config";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 import { LoggingInterceptor } from "./logging.interceptor";
+import { RootController } from "./root.controller";
 import { AgentV1Builder } from "./graph";
 import { EngineModule } from "./modules/engine/engine.module";
 import { DatabaseModule } from "./modules/database/database.module";
 import { PlatformConnectorModule } from "./modules/platform-connector/platform-connector.module";
 import { CheckpointerModule } from "./modules/checkpointer/checkpointer.module";
+import { AdminModule } from "./modules/admin/admin.module";
 import {
   BaseGraphServiceController,
   BuilderRegistryService,
@@ -44,8 +46,9 @@ const logger = new Logger("AppModule");
     EngineModule,
     DatabaseModule,
     PlatformConnectorModule,
+    AdminModule,
   ],
-  controllers: [BaseGraphServiceController],
+  controllers: [RootController, BaseGraphServiceController],
   providers: [
     {
       provide: APP_INTERCEPTOR,

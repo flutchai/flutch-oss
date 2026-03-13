@@ -62,7 +62,7 @@ function makeMockReq() {
 
 /** Helper: seed a session token into the service's internal Map. */
 function seedSession(svc: WidgetConnectorService, token = TEST_SESSION, fp = TEST_FINGERPRINT) {
-  (svc as any).sessions.set(token, fp);
+  (svc as any).sessions.set(token, { fingerprint: fp, expiresAt: Date.now() + 86_400_000 });
 }
 
 /** Helper: build a valid WidgetMessageDto with a pre-seeded session token. */
@@ -134,7 +134,7 @@ describe("WidgetConnectorService", () => {
 
     it("stores sessionToken in sessions map", async () => {
       const { sessionToken } = await service.init({ widgetKey: "wk_test", fingerprint: "fp-abc" });
-      expect((service as any).sessions.get(sessionToken)).toBe("fp-abc");
+      expect((service as any).sessions.get(sessionToken)?.fingerprint).toBe("fp-abc");
     });
 
     it("reuses existing thread on repeated init", async () => {

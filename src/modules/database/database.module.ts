@@ -5,6 +5,7 @@ import { User } from "./entities/user.entity";
 import { UserIdentity } from "./entities/user-identity.entity";
 import { Thread } from "./entities/thread.entity";
 import { Message } from "./entities/message.entity";
+import { AdminUser } from "./entities/admin-user.entity";
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { Message } from "./entities/message.entity";
         username: config.get<string>("POSTGRES_USER", "flutch"),
         password: config.get<string>("POSTGRES_PASSWORD", "flutch"),
         database: config.get<string>("POSTGRES_DB", "flutch_oss"),
-        entities: [User, UserIdentity, Thread, Message],
+        entities: [User, UserIdentity, Thread, Message, AdminUser],
         migrations: [__dirname + "/../../migrations/*.{ts,js}"],
         migrationsRun: true,
         synchronize: false,

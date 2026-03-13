@@ -29,8 +29,6 @@ import { Platform } from "../../src/modules/database/entities/platform.enum";
 import { Message, MessageDirection } from "../../src/modules/database/entities/message.entity";
 import { User } from "../../src/modules/database/entities/user.entity";
 import { UserIdentity } from "../../src/modules/database/entities/user-identity.entity";
-import { InitialSchema1741769000000 } from "../../src/migrations/1741769000000-InitialSchema";
-import { AddUsersAndIdentities1741870000000 } from "../../src/migrations/1741870000000-AddUsersAndIdentities";
 import { AgentConfigService } from "../../src/modules/config/agent-config.service";
 import { TelegramWebhookController } from "../../src/modules/platform-connector/telegram/telegram-webhook.controller";
 import { TelegramConnectorService } from "../../src/modules/platform-connector/telegram/telegram-connector.service";
@@ -104,7 +102,7 @@ describe("Telegram Webhook (E2E)", () => {
           entities: [Thread, Message, User, UserIdentity],
           // Use real migrations — same path as production.
           // If a migration is broken, test setup will fail here, not in prod.
-          migrations: [InitialSchema1741769000000, AddUsersAndIdentities1741870000000],
+          migrations: ["src/migrations/*.ts"],
           migrationsRun: true,
           synchronize: false,
           dropSchema: true, // clean slate before each test run

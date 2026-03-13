@@ -4,6 +4,7 @@ import { NotFoundException } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { User } from "../database/entities/user.entity";
 import { UserIdentity } from "../database/entities/user-identity.entity";
+import { Thread } from "../database/entities/thread.entity";
 import { Platform } from "../database/entities/platform.enum";
 
 const mockUser = (id = "user-uuid-1"): User => ({
@@ -28,7 +29,10 @@ describe("UserService", () => {
   let service: UserService;
   let userRepo: any;
   let identityRepo: Record<string, jest.Mock>;
-  const mockEntityManager = { getRepository: jest.fn() };
+  const mockEntityManager = {
+    getRepository: jest.fn(),
+    transaction: jest.fn().mockImplementation(cb => cb(mockEntityManager)),
+  };
 
   beforeEach(async () => {
     userRepo = {
@@ -138,15 +142,25 @@ describe("UserService", () => {
   describe("mergeUsers", () => {
     const mockQb = {
       update: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
       set: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       execute: jest.fn().mockResolvedValue({}),
     };
-    const mockThreadsRepo = { createQueryBuilder: jest.fn().mockReturnValue(mockQb) };
+    const mockThreadsRepo = {
+      createQueryBuilder: jest.fn().mockReturnValue(mockQb),
+      delete: jest.fn().mockResolvedValue({}),
+    };
 
     beforeEach(() => {
       identityRepo.createQueryBuilder = jest.fn().mockReturnValue(mockQb);
-      mockEntityManager.getRepository.mockReturnValue(mockThreadsRepo);
+      identityRepo.delete = jest.fn().mockResolvedValue({});
+      mockEntityManager.getRepository.mockImplementation(entity => {
+        if (entity === User) return userRepo;
+        if (entity === UserIdentity) return identityRepo;
+        if (entity === Thread) return mockThreadsRepo;
+        return null;
+      });
     });
 
     it("reassigns identities and threads, then deletes source", async () => {

@@ -141,6 +141,10 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
 }
 ```
 
+## Language
+
+All user-facing strings, UI text, and code in this project use **English** as the default and only language. Do not add strings in other languages.
+
 ## Development
 
 ```bash
