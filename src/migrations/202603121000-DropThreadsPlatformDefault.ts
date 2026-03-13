@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class DropThreadsPlatformDefault1741872000000 implements MigrationInterface {
+export class DropThreadsPlatformDefault202603121000 implements MigrationInterface {
   name = "DropThreadsPlatformDefault1741872000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

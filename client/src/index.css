@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/* ─── Flutch Brand Colors ─────────────────────────────────────── */
+:root {
+  --primary:          350 63% 52%;   /* hsl(350, 63%, 52%) — crimson */
+  --primary-light:    350 63% 67%;
+  --primary-dark:     350 63% 37%;
+  --primary-fg:       0 0% 100%;
+
+  --success:          145 63% 49%;   /* #2ecc71 */
+  --warning:          37 90% 51%;    /* #f39c12 */
+  --destructive:      4 70% 54%;     /* #e74c3c */
+  --info:             207 74% 54%;   /* #3498db */
+
+  --background:       0 0% 100%;
+  --foreground:       210 29% 24%;   /* #2c3e50 */
+  --muted:            210 5% 96%;
+  --muted-foreground: 200 7% 59%;    /* #95a5a6 */
+
+  --card:             0 0% 100%;
+  --card-foreground:  210 29% 24%;
+  --border:           0 0% 90%;
+  --input:            0 0% 90%;
+  --ring:             350 63% 52%;
+
+  --sidebar-bg:       210 29% 15%;   /* dark sidebar */
+  --sidebar-fg:       0 0% 95%;
+  --sidebar-border:   210 29% 20%;
+  --sidebar-active:   350 63% 52%;
+
+  --radius:           0.5rem;
+  --font-mono:        "Fira Code", ui-monospace, monospace;
+}
+
+/* ─── Base ───────────────────────────────────────────────────── */
+* {
+  border-color: hsl(var(--border));
+  box-sizing: border-box;
+}
+
+body {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Tailwind v4 theme mapping ─────────────────────────────── */
+@theme {
+  --color-primary:        hsl(var(--primary));
+  --color-primary-light:  hsl(var(--primary-light));
+  --color-primary-dark:   hsl(var(--primary-dark));
+  --color-primary-fg:     hsl(var(--primary-fg));
+
+  --color-success:        hsl(var(--success));
+  --color-warning:        hsl(var(--warning));
+  --color-destructive:    hsl(var(--destructive));
+  --color-info:           hsl(var(--info));
+
+  --color-background:     hsl(var(--background));
+  --color-foreground:     hsl(var(--foreground));
+  --color-muted:          hsl(var(--muted));
+  --color-muted-fg:       hsl(var(--muted-foreground));
+
+  --color-card:           hsl(var(--card));
+  --color-border:         hsl(var(--border));
+  --color-input:          hsl(var(--input));
+  --color-ring:           hsl(var(--ring));
+
+  --color-sidebar:        hsl(var(--sidebar-bg));
+  --color-sidebar-fg:     hsl(var(--sidebar-fg));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-active: hsl(var(--sidebar-active));
+
+  --radius-sm:  calc(var(--radius) - 2px);
+  --radius-md:  var(--radius);
+  --radius-lg:  calc(var(--radius) + 2px);
+  --radius-full: 9999px;
+}

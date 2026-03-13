@@ -88,6 +88,15 @@ export class AgentConfigService {
     };
   }
 
+  getLocalConfigs(): Record<string, AgentConfig> {
+    return this.localConfigs;
+  }
+
+  getAgentCount(): number | null {
+    if (this.mode !== "local") return null;
+    return Object.keys(this.localConfigs).length;
+  }
+
   private getFromLocal(agentId: string): AgentConfig {
     const config = this.localConfigs[agentId];
     if (!config) {

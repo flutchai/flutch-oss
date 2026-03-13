@@ -6,6 +6,7 @@ COPY .yarn ./.yarn
 RUN yarn install
 COPY . .
 RUN yarn build
+RUN yarn client:build
 
 FROM node:20-alpine AS production
 RUN corepack enable
@@ -14,6 +15,7 @@ COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn ./.yarn
 RUN yarn workspaces focus --production
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/client/dist ./client/dist
 COPY graph.manifest.json ./
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nestjs -u 1001

@@ -8,6 +8,7 @@ import {
   HttpCode,
   ForbiddenException,
 } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import { TelegramConnectorService } from "./telegram-connector.service";
 import { TelegramUpdate } from "./telegram.types";
@@ -23,6 +24,7 @@ import { TelegramUpdate } from "./telegram.types";
  * Optional secret verification: set TELEGRAM_WEBHOOK_SECRET env var and
  * pass the same value as the `secret_token` param when calling setWebhook.
  */
+@ApiTags("Telegram Webhook")
 @Controller("public/tg")
 export class TelegramWebhookController {
   private readonly logger = new Logger(TelegramWebhookController.name);
@@ -34,6 +36,12 @@ export class TelegramWebhookController {
 
   @Post("webhook/:agentId")
   @HttpCode(200)
+  @ApiOperation({ summary: "Receive Telegram Bot API webhook update" })
+  @ApiResponse({
+    status: 200,
+    description: "Update processed (always 200 to prevent Telegram retries)",
+  })
+  @ApiResponse({ status: 403, description: "Invalid webhook secret" })
   async handleWebhook(
     @Param("agentId") agentId: string,
     @Body() update: TelegramUpdate,

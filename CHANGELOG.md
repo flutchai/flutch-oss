@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-13
+
+### Added
+- Mini Admin UI — React + Vite frontend served at `/admin/`
+- Desktop layout with collapsible sidebar navigation (Dashboard, Agents, Conversations, Users, Settings)
+- Mobile layout at `/admin/m/` with bottom navigation bar; auto-redirect by user-agent
+- Mobile-specific pages: MobileDashboard, MobileConversations (cards), MobileUsers (cards), MobileConversationDetail (chat bubbles), MobileUserDetail, MobileAgents, MobileSettings
+- Admin backend module: auth (JWT), agents, conversations, users, dashboard stats, settings API
+- `AdminUser` entity + migration `202603130000-AddAdminUsers`
+- `RootController` — serves admin UI static files
+- All UI strings in English; all tested elements use `data-testid` selectors
+
 ## [0.2.0] - 2026-03-10
 
 ### Added

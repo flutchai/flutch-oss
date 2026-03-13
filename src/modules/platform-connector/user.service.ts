@@ -69,26 +69,43 @@ export class UserService {
     if (!source) throw new NotFoundException(`Source user ${sourceUserId} not found`);
     if (!target) throw new NotFoundException(`Target user ${targetUserId} not found`);
 
-    // Reassign all identities to target via QueryBuilder (bypasses insert:false/update:false)
-    if (source.identities?.length) {
-      await this.identityRepo
+    await this.userRepo.manager.transaction(async manager => {
+      // Reassign all identities to target via QueryBuilder (bypasses insert:false/update:false)
+      if (source.identities?.length) {
+        await manager
+          .getRepository(UserIdentity)
+          .createQueryBuilder()
+          .update()
+          .set({ userId: targetUserId })
+          .where("user_id = :userId", { userId: sourceUserId })
+          .execute();
+      }
+
+      // Delete source threads that would violate the unique(agentId, userId, platform) constraint
+      // (i.e. target already has a thread for the same agent+platform combination)
+      await manager
+        .getRepository(Thread)
+        .createQueryBuilder()
+        .delete()
+        .where(
+          "user_id = :sourceId AND (agent_id, platform) IN " +
+            "(SELECT agent_id, platform FROM threads WHERE user_id = :targetId)",
+          { sourceId: sourceUserId, targetId: targetUserId }
+        )
+        .execute();
+
+      // Reassign remaining source threads to target
+      await manager
+        .getRepository(Thread)
         .createQueryBuilder()
         .update()
         .set({ userId: targetUserId })
         .where("user_id = :userId", { userId: sourceUserId })
         .execute();
-    }
 
-    // Reassign all threads to target
-    await this.userRepo.manager
-      .getRepository(Thread)
-      .createQueryBuilder()
-      .update()
-      .set({ userId: targetUserId })
-      .where("user_id = :userId", { userId: sourceUserId })
-      .execute();
+      await manager.getRepository(User).delete(sourceUserId);
+    });
 
-    await this.userRepo.delete(sourceUserId);
     this.logger.log(`Merged user ${sourceUserId} into ${targetUserId}`);
   }
 }
