@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-14
+
+### Added
+- CI: `client-tests` job runs Vitest (109 tests) with V8 coverage reporting
+- CI: PR coverage comment now has two sections — **Backend** (Jest) and **Client** (Vitest)
+- `client/package.json`: `test:cov` script (`vitest run --coverage`)
+- `client/vitest.config.ts`: V8 coverage config with `json-summary` reporter
+- `client/.gitignore`: ignores `node_modules/`, `dist/`, `coverage/`, `.yarn/` internals
+- `client/yarn.lock`: lockfile for reproducible installs
+
+### Changed
+- Migrated `client/` from npm to Yarn — `packageManager: yarn@4.5.3`
+- Root `package.json` client scripts use `yarn --cwd client` instead of `npm --prefix client`
+- `test:all` now runs: backend unit → client → e2e
+
+### Fixed
+- `client/package-lock.json` removed from git (project uses Yarn exclusively)
+- Added missing `@testing-library/dom` peer dependency for `@testing-library/react`
+
 ## [0.5.0] - 2026-03-14
 
 ### Fixed

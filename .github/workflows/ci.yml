@@ -38,25 +38,25 @@ jobs:
           name: unit-coverage
           path: coverage/
 
-      - name: Post coverage comment
+      - name: Post backend coverage comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            let comment = '## Test Coverage Report\n\n';
+            let backendSection = '### Backend\n\n';
             try {
               const summary = JSON.parse(
                 fs.readFileSync('coverage/coverage-summary.json', 'utf8')
               );
               const total = summary.total;
-              comment += '| Metric | Coverage |\n|--------|----------|\n';
-              comment += `| Statements | ${total.statements.pct}% |\n`;
-              comment += `| Branches | ${total.branches.pct}% |\n`;
-              comment += `| Functions | ${total.functions.pct}% |\n`;
-              comment += `| Lines | ${total.lines.pct}% |\n`;
+              backendSection += '| Metric | Coverage |\n|--------|----------|\n';
+              backendSection += `| Statements | ${total.statements.pct}% |\n`;
+              backendSection += `| Branches | ${total.branches.pct}% |\n`;
+              backendSection += `| Functions | ${total.functions.pct}% |\n`;
+              backendSection += `| Lines | ${total.lines.pct}% |\n`;
             } catch (e) {
-              comment += 'Coverage report not available\n';
+              backendSection += 'Coverage report not available\n';
             }
 
             const { data: comments } = await github.rest.issues.listComments({
@@ -67,19 +67,114 @@ jobs:
             const existing = comments.find(c =>
               c.user.type === 'Bot' && c.body.includes('Test Coverage Report')
             );
+
             if (existing) {
+              let body = existing.body;
+              if (body.includes('### Backend')) {
+                body = body.replace(/### Backend[\s\S]*?(?=\n\n###|$)/, backendSection.trimEnd());
+              } else {
+                body = '## Test Coverage Report\n\n' + backendSection;
+              }
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: existing.id,
-                body: comment,
+                body: body,
               });
             } else {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: comment,
+                body: '## Test Coverage Report\n\n' + backendSection,
+              });
+            }
+
+  # ─── Client (frontend) unit tests ──────────────────────────────────────────
+  client-tests:
+    name: Client Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    permissions:
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: client/yarn.lock
+
+      - name: Install client dependencies
+        run: yarn install --immutable
+
+      - name: Run client tests with coverage
+        run: yarn test:cov
+
+      - name: Upload client coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-coverage
+          path: client/coverage/
+
+      - name: Post client coverage comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let clientSection = '### Client\n\n';
+            try {
+              const summary = JSON.parse(
+                fs.readFileSync('client/coverage/coverage-summary.json', 'utf8')
+              );
+              const total = summary.total;
+              clientSection += '| Metric | Coverage |\n|--------|----------|\n';
+              clientSection += `| Statements | ${total.statements.pct}% |\n`;
+              clientSection += `| Branches | ${total.branches.pct}% |\n`;
+              clientSection += `| Functions | ${total.functions.pct}% |\n`;
+              clientSection += `| Lines | ${total.lines.pct}% |\n`;
+            } catch (e) {
+              clientSection += 'Coverage report not available\n';
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Test Coverage Report')
+            );
+
+            if (existing) {
+              let body = existing.body;
+              if (body.includes('### Client')) {
+                body = body.replace(/### Client[\s\S]*$/, clientSection);
+              } else {
+                body = body + '\n\n' + clientSection;
+              }
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: '## Test Coverage Report\n\n' + clientSection,
               });
             }
 
