@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-14
+
+### Fixed
+- **Fail-fast config hardening** — removed all silent fallback values for required environment variables across the codebase (follow-up to code review):
+  - `AgentConfigService`: `CONFIG_MODE` now uses `getOrThrow` — missing var throws at startup instead of defaulting to `"local"`
+  - `DatabaseModule`: all 5 Postgres params (`POSTGRES_HOST/PORT/USER/PASSWORD/DB`) use `getOrThrow`
+  - `data-source.ts` (TypeORM CLI): `requireEnv()` helper throws on any missing Postgres var — CLI migrations fail fast
+  - `AdminSettingsService`: removed `""` fallbacks for `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FLUTCH_PLATFORM_URL`, `WEBHOOK_BASE_URL`, `CONFIG_MODE`
+  - `LangfuseService`: `LANGFUSE_HOST` no longer defaults to `"localhost"` — URL is built only when both `LANGFUSE_HOST` and `LANGFUSE_PORT` are set
+- **Tests**: added `root.controller.spec.ts` covering `serveAdmin()` SPA path resolution, asset serving, and error fallback to `index.html`
+
+## [0.4.0] - 2026-03-14
+
+### Added
+- **LangFuse tracing** — `LangfuseService` creates a per-request `CallbackHandler` bound to the LLM via `model.withConfig({ callbacks })`, tagging each trace with `userId`, `agentId`, `threadId`
+- `LangfuseModule` — `@Global()` module, auto-registered in `AppModule`
+- Flexible `baseUrl` resolution: `LANGFUSE_BASE_URL` (explicit) → `LANGFUSE_HOST:LANGFUSE_PORT` (auto-build) → LangFuse Cloud (fallback)
+- `langfuse-langchain` dependency
+- LangFuse env vars documented in `.env.example` (`LANGFUSE_ENABLED`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_PORT`, `LANGFUSE_HOST`)
+
+### Changed
+- `AgentV1Builder` — injects optional `LangfuseService`, creates callback handler per `buildGraph()` call with full request context
+
 ## [0.3.0] - 2026-03-13
 
 ### Added

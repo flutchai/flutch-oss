@@ -24,7 +24,7 @@ export class AgentConfigService {
     private readonly configService: ConfigService,
     private readonly httpService: HttpService
   ) {
-    const raw = this.configService.get<string>("CONFIG_MODE") ?? "local";
+    const raw = this.configService.getOrThrow<string>("CONFIG_MODE");
     if (raw !== "local" && raw !== "platform") {
       throw new Error(`Invalid CONFIG_MODE="${raw}". Valid values are "local" and "platform".`);
     }

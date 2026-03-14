@@ -20,6 +20,10 @@ describe("AgentConfigService", () => {
             provide: ConfigService,
             useValue: {
               get: jest.fn((key: string) => (key === "CONFIG_MODE" ? "local" : undefined)),
+              getOrThrow: jest.fn((key: string) => {
+                if (key === "CONFIG_MODE") return "local";
+                throw new Error(`Missing required config: ${key}`);
+              }),
             },
           },
         ],
@@ -79,6 +83,12 @@ describe("AgentConfigService", () => {
                 if (key === "INTERNAL_API_TOKEN") return "test-token";
                 return undefined;
               }),
+              getOrThrow: jest.fn((key: string) => {
+                if (key === "CONFIG_MODE") return "platform";
+                if (key === "API_URL") return "https://api.flutch.ai";
+                if (key === "INTERNAL_API_TOKEN") return "test-token";
+                throw new Error(`Missing required config: ${key}`);
+              }),
             },
           },
         ],
@@ -134,6 +144,10 @@ describe("AgentConfigService", () => {
               provide: ConfigService,
               useValue: {
                 get: jest.fn((key: string) => (key === "CONFIG_MODE" ? "local" : undefined)),
+                getOrThrow: jest.fn((key: string) => {
+                  if (key === "CONFIG_MODE") return "local";
+                  throw new Error(`Missing required config: ${key}`);
+                }),
               },
             },
           ],
@@ -157,6 +171,11 @@ describe("AgentConfigService", () => {
             provide: ConfigService,
             useValue: {
               get: jest.fn((key: string) => env[key]),
+              getOrThrow: jest.fn((key: string) => {
+                const val = env[key];
+                if (!val) throw new Error(`Missing required config: ${key}`);
+                return val;
+              }),
             },
           },
         ],
@@ -198,6 +217,10 @@ describe("AgentConfigService", () => {
               provide: ConfigService,
               useValue: {
                 get: jest.fn((key: string) => (key === "CONFIG_MODE" ? "local" : undefined)),
+                getOrThrow: jest.fn((key: string) => {
+                  if (key === "CONFIG_MODE") return "local";
+                  throw new Error(`Missing required config: ${key}`);
+                }),
               },
             },
           ],
@@ -231,6 +254,12 @@ describe("AgentConfigService", () => {
                   if (key === "API_URL") return "https://api.flutch.ai";
                   if (key === "INTERNAL_API_TOKEN") return "test-token";
                   return undefined;
+                }),
+                getOrThrow: jest.fn((key: string) => {
+                  if (key === "CONFIG_MODE") return "platform";
+                  if (key === "API_URL") return "https://api.flutch.ai";
+                  if (key === "INTERNAL_API_TOKEN") return "test-token";
+                  throw new Error(`Missing required config: ${key}`);
                 }),
               },
             },
@@ -274,6 +303,7 @@ describe("AgentConfigService", () => {
               provide: ConfigService,
               useValue: {
                 get: jest.fn(() => "cloud"),
+                getOrThrow: jest.fn(() => "cloud"),
               },
             },
           ],

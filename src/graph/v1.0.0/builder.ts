@@ -4,6 +4,7 @@ import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 import { BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { createModel } from "./model.factory";
 import { CHECKPOINTER } from "../../modules/checkpointer/checkpointer.service";
+import { LangfuseService } from "../../modules/langfuse/langfuse.service";
 
 const AgentState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -26,7 +27,10 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
   readonly version = "1.0.0" as const;
   protected readonly logger = new Logger(AgentV1Builder.name);
 
-  constructor(@Optional() @Inject(CHECKPOINTER) private readonly checkpointer: any) {
+  constructor(
+    @Optional() @Inject(CHECKPOINTER) private readonly checkpointer: any,
+    @Optional() private readonly langfuseService: LangfuseService | null
+  ) {
     super();
   }
 
@@ -41,7 +45,19 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
 
     this.logger.debug(`Building agent graph v1.0.0 model=${modelSettings.model}`);
 
-    const model = createModel(modelSettings);
+    const baseModel = createModel(modelSettings);
+
+    const ctx = payload?.config?.configurable;
+    const langfuseCallback =
+      this.langfuseService?.createCallbackHandler({
+        userId: ctx?.context?.userId ?? "anonymous",
+        agentId: ctx?.context?.agentId ?? "unknown",
+        threadId: ctx?.thread_id ?? "no-thread",
+      }) ?? null;
+
+    const model = langfuseCallback
+      ? baseModel.withConfig({ callbacks: [langfuseCallback] })
+      : baseModel;
 
     const generateNode = async (state: typeof AgentState.State) => {
       const messages: BaseMessage[] = [];

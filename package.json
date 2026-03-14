@@ -1,6 +1,6 @@
 {
   "name": "@flutchai/flutch-oss",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "description": "Flutch OSS — standalone agent engine for on-premise deployment",
   "main": "dist/index.js",
   "scripts": {
@@ -48,6 +48,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "ioredis": "^5.8.2",
+    "langfuse-langchain": "^3.38.6",
     "pg": "^8.20.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",

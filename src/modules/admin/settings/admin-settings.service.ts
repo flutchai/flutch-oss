@@ -13,12 +13,12 @@ export class AdminSettingsService {
   ) {}
 
   getSettings() {
-    const openaiKey = this.configService.get<string>("OPENAI_API_KEY", "");
-    const anthropicKey = this.configService.get<string>("ANTHROPIC_API_KEY", "");
-    const platformUrl = this.configService.get<string>("FLUTCH_PLATFORM_URL", "");
+    const openaiKey = this.configService.get<string>("OPENAI_API_KEY");
+    const anthropicKey = this.configService.get<string>("ANTHROPIC_API_KEY");
+    const platformUrl = this.configService.get<string>("FLUTCH_PLATFORM_URL");
 
     return {
-      configMode: this.configService.get<string>("CONFIG_MODE", "local"),
+      configMode: this.configService.get<string>("CONFIG_MODE"),
       flutchPlatformUrl: platformUrl ? maskUrl(platformUrl) : null,
       openaiKeyMasked: openaiKey ? `sk-...${openaiKey.slice(-4)}` : null,
       anthropicKeyMasked: anthropicKey ? `sk-ant-...${anthropicKey.slice(-4)}` : null,
@@ -31,7 +31,7 @@ export class AdminSettingsService {
     if (!botToken)
       return { success: false, error: "No Telegram bot token configured for this agent" };
 
-    const webhookBase = this.configService.get<string>("WEBHOOK_BASE_URL", "");
+    const webhookBase = this.configService.get<string>("WEBHOOK_BASE_URL");
     if (!webhookBase) return { success: false, error: "WEBHOOK_BASE_URL env variable not set" };
 
     const webhookUrl = `${webhookBase}/public/tg/webhook/${agentId}`;

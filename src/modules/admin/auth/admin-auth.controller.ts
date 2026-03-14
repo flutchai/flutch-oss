@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  UseGuards,
-  Req,
-  HttpCode,
-} from "@nestjs/common";
+import { Controller, Post, Body, UseGuards, Req, HttpCode } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
 import { IsString, IsNotEmpty, MinLength } from "class-validator";
 import { AdminAuthService } from "./admin-auth.service";

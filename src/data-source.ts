@@ -15,13 +15,20 @@ import { Message } from "./modules/database/entities/message.entity";
 import { User } from "./modules/database/entities/user.entity";
 import { UserIdentity } from "./modules/database/entities/user-identity.entity";
 import { AdminUser } from "./modules/database/entities/admin-user.entity";
+
+function requireEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) throw new Error(`Missing required environment variable: ${key}`);
+  return value;
+}
+
 export const AppDataSource = new DataSource({
   type: "postgres",
-  host: process.env.POSTGRES_HOST ?? "localhost",
-  port: parseInt(process.env.POSTGRES_PORT ?? "5432", 10),
-  username: process.env.POSTGRES_USER ?? "flutch",
-  password: process.env.POSTGRES_PASSWORD ?? "flutch",
-  database: process.env.POSTGRES_DB ?? "flutch_oss",
+  host: requireEnv("POSTGRES_HOST"),
+  port: parseInt(requireEnv("POSTGRES_PORT"), 10),
+  username: requireEnv("POSTGRES_USER"),
+  password: requireEnv("POSTGRES_PASSWORD"),
+  database: requireEnv("POSTGRES_DB"),
   entities: [User, UserIdentity, Thread, Message, AdminUser],
   migrations: ["src/migrations/*.ts"],
   synchronize: false,
