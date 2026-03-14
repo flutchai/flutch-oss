@@ -147,6 +147,8 @@ All user-facing strings, UI text, and code in this project use **English** as th
 
 ## Development
 
+This project uses **Yarn** as its package manager. Do not use `npm` or `npx` — they will create a `package-lock.json` which is not committed.
+
 ```bash
 yarn dev          # start with watch
 yarn test         # run tests
