@@ -1,6 +1,6 @@
 {
   "name": "@flutchai/flutch-oss",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Flutch OSS — standalone agent engine for on-premise deployment",
   "main": "dist/index.js",
   "scripts": {
@@ -17,13 +17,14 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage --coverageReporters=json-summary --coverageReporters=text",
     "test:e2e": "jest --config jest.e2e.json --forceExit",
-    "test:all": "yarn test:unit && yarn test:e2e",
+    "test:all": "yarn test:unit && yarn client:test && yarn test:e2e",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/data-source.ts",
-    "client:install": "npm install --prefix client",
-    "client:build": "npm run build --prefix client",
-    "client:dev": "npm run dev --prefix client",
+    "client:install": "yarn --cwd client install",
+    "client:build": "yarn --cwd client build",
+    "client:dev": "yarn --cwd client dev",
+    "client:test": "yarn --cwd client test",
     "dev:all": "concurrently -n api,ui -c cyan,magenta \"yarn dev\" \"yarn client:dev\""
   },
   "dependencies": {
