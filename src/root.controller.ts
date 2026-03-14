@@ -17,7 +17,7 @@ export class RootController {
   serveAdmin(@Req() req: Request, @Res() res: Response) {
     const relativePath = req.path.replace(/^\/admin/, "") || "/index.html";
     const filePath = join(process.cwd(), "client", "dist", relativePath);
-    res.sendFile(filePath, (err) => {
+    res.sendFile(filePath, err => {
       if (err) {
         res.sendFile(join(process.cwd(), "client", "dist", "index.html"));
       }

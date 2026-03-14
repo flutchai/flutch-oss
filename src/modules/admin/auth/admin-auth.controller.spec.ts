@@ -45,7 +45,6 @@ describe("AdminAuthController", () => {
       expect(authService.login).toHaveBeenCalledWith("admin", "pass");
       expect(result).toEqual({ access_token: "jwt", must_change_password: false });
     });
-
   });
 
   describe("changePassword", () => {
@@ -63,6 +62,5 @@ describe("AdminAuthController", () => {
       );
       expect(result).toEqual({ success: true });
     });
-
   });
 });
