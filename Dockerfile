@@ -2,17 +2,16 @@ FROM node:20-alpine AS builder
 RUN corepack enable
 WORKDIR /app
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
 RUN yarn install
 COPY . .
 RUN yarn build
+RUN yarn client:install
 RUN yarn client:build
 
 FROM node:20-alpine AS production
 RUN corepack enable
 WORKDIR /app
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
 RUN yarn workspaces focus --production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/client/dist ./client/dist
