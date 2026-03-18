@@ -12,12 +12,14 @@ export interface DashboardStats {
   messages_today: number;
   users_total: number;
   total_threads: number;
+  kb_count: number;
+  articles_total: number;
+  articles_published: number;
 }
 
 export interface SystemStatus {
   engine: boolean;
   database: boolean;
-  ragflow: boolean;
 }
 
 export interface ActivityItem {

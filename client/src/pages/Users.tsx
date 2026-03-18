@@ -29,14 +29,20 @@ export function UsersPage() {
   return (
     <div className="p-6 space-y-4">
       <div>
-        <h1 className="text-xl font-semibold" data-testid="users-heading">Users</h1>
-        <p className="text-sm text-muted-fg mt-0.5" data-testid="users-total">{data?.total ?? 0} users</p>
+        <h1 className="text-xl font-semibold" data-testid="users-heading">
+          Users
+        </h1>
+        <p className="text-sm text-muted-fg mt-0.5" data-testid="users-total">
+          {data?.total ?? 0} users
+        </p>
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-12 text-center text-sm text-muted-fg" data-testid="users-loading">Loading...</div>
+            <div className="py-12 text-center text-sm text-muted-fg" data-testid="users-loading">
+              Loading...
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -82,7 +88,11 @@ export function UsersPage() {
                 ))}
                 {data?.data.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-fg py-12" data-testid="users-empty">
+                    <TableCell
+                      colSpan={4}
+                      className="text-center text-muted-fg py-12"
+                      data-testid="users-empty"
+                    >
                       No users
                     </TableCell>
                   </TableRow>

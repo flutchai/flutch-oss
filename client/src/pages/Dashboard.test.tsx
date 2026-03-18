@@ -27,8 +27,11 @@ const mockStats = {
   messages_today: 45,
   users_total: 100,
   total_threads: 500,
+  kb_count: 2,
+  articles_total: 10,
+  articles_published: 7,
 };
-const mockStatus = { engine: true, database: true, ragflow: false };
+const mockStatus = { engine: true, database: true };
 const mockActivity = [
   {
     id: "msg-1",
@@ -61,7 +64,6 @@ describe("DashboardPage", () => {
 
     expect(screen.getByTestId("status-card-engine")).toHaveTextContent("Engine");
     expect(screen.getByTestId("status-card-database")).toHaveTextContent("PostgreSQL");
-    expect(screen.getByTestId("status-card-ragflow")).toHaveTextContent("RAGflow");
   });
 
   it("shows Online/Offline based on status data", () => {
@@ -69,7 +71,6 @@ describe("DashboardPage", () => {
 
     expect(screen.getByTestId("status-card-engine-value")).toHaveTextContent("Online");
     expect(screen.getByTestId("status-card-database-value")).toHaveTextContent("Online");
-    expect(screen.getByTestId("status-card-ragflow-value")).toHaveTextContent("Offline");
   });
 
   it("renders stats card values", () => {
@@ -79,6 +80,14 @@ describe("DashboardPage", () => {
     expect(screen.getByTestId("stat-threads-today")).toHaveTextContent("12");
     expect(screen.getByTestId("stat-messages-today")).toHaveTextContent("45");
     expect(screen.getByTestId("stat-users-total")).toHaveTextContent("100");
+  });
+
+  it("renders knowledge base stats", () => {
+    render(<DashboardPage />);
+
+    expect(screen.getByTestId("stat-kb-count")).toHaveTextContent("2");
+    expect(screen.getByTestId("stat-articles-total")).toHaveTextContent("10");
+    expect(screen.getByTestId("stat-articles-published")).toHaveTextContent("7");
   });
 
   it("shows — for agents_count when null (platform mode)", () => {

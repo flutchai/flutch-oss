@@ -3,7 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, to, ...props }: any) => React.createElement("a", { href: to, ...props }, children),
+  Link: ({ children, to, ...props }: any) =>
+    React.createElement("a", { href: to, ...props }, children),
   useParams: vi.fn(() => ({ id: "user-uuid-1" })),
 }));
 
@@ -24,7 +25,11 @@ const { UserDetailPage } = await import("./UserDetail");
 const mockUser = {
   id: "user-uuid-1",
   identities: [
-    { platform: "telegram", externalId: "12345", metadata: { username: "ivan", first_name: "Ivan" } },
+    {
+      platform: "telegram",
+      externalId: "12345",
+      metadata: { username: "ivan", first_name: "Ivan" },
+    },
   ],
   threads: [
     { id: "thread-1", agentId: "agent-1", platform: "telegram", createdAt: "2024-01-15T10:00:00Z" },

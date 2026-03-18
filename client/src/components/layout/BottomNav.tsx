@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, MessageSquare, Users, Bot, Settings } from "lucide-react";
+import { LayoutDashboard, MessageSquare, Users, Bot, BookOpen, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -30,6 +30,13 @@ const navItems = [
     to: "/m/agents",
     testId: "bottom-nav-agents",
     isActive: (pathname: string) => pathname.startsWith("/m/agents"),
+  },
+  {
+    label: "Knowledge",
+    icon: BookOpen,
+    to: "/m/knowledge-bases",
+    testId: "bottom-nav-knowledge-base",
+    isActive: (pathname: string) => pathname.startsWith("/m/knowledge-bases"),
   },
   {
     label: "Settings",

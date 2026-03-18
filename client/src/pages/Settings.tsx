@@ -60,7 +60,9 @@ export function SettingsPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
-      <h1 className="text-xl font-semibold" data-testid="settings-heading">Settings</h1>
+      <h1 className="text-xl font-semibold" data-testid="settings-heading">
+        Settings
+      </h1>
 
       {/* Engine */}
       <Card data-testid="engine-section">
@@ -92,7 +94,10 @@ export function SettingsPage() {
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-muted-fg">OpenAI API Key</span>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs bg-muted rounded px-2 py-1" data-testid="openai-key-value">
+              <span
+                className="font-mono text-xs bg-muted rounded px-2 py-1"
+                data-testid="openai-key-value"
+              >
                 {settings?.openaiKeyMasked
                   ? showOpenai
                     ? settings.openaiKeyMasked
@@ -100,7 +105,12 @@ export function SettingsPage() {
                   : "Not configured"}
               </span>
               {settings?.openaiKeyMasked && (
-                <Button size="sm" variant="ghost" onClick={() => setShowOpenai(v => !v)} className="h-7 w-7 p-0">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowOpenai(v => !v)}
+                  className="h-7 w-7 p-0"
+                >
                   {showOpenai ? <EyeOff size={12} /> : <Eye size={12} />}
                 </Button>
               )}
@@ -109,7 +119,10 @@ export function SettingsPage() {
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-muted-fg">Anthropic API Key</span>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs bg-muted rounded px-2 py-1" data-testid="anthropic-key-value">
+              <span
+                className="font-mono text-xs bg-muted rounded px-2 py-1"
+                data-testid="anthropic-key-value"
+              >
                 {settings?.anthropicKeyMasked
                   ? showAnthropic
                     ? settings.anthropicKeyMasked
@@ -117,7 +130,12 @@ export function SettingsPage() {
                   : "Not configured"}
               </span>
               {settings?.anthropicKeyMasked && (
-                <Button size="sm" variant="ghost" onClick={() => setShowAnthropic(v => !v)} className="h-7 w-7 p-0">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowAnthropic(v => !v)}
+                  className="h-7 w-7 p-0"
+                >
                   {showAnthropic ? <EyeOff size={12} /> : <Eye size={12} />}
                 </Button>
               )}
@@ -176,36 +194,58 @@ export function SettingsPage() {
           <form onSubmit={handleSubmit(d => changePassword.mutate(d))} className="space-y-3">
             <div className="space-y-1.5">
               <label className="text-sm text-muted-fg">Current password</label>
-              <Input {...register("currentPassword")} type="password" data-testid="current-password-input" />
+              <Input
+                {...register("currentPassword")}
+                type="password"
+                data-testid="current-password-input"
+              />
               {errors.currentPassword && (
                 <p className="text-xs text-destructive">{errors.currentPassword.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <label className="text-sm text-muted-fg">New password</label>
-              <Input {...register("newPassword")} type="password" data-testid="new-password-input" />
+              <Input
+                {...register("newPassword")}
+                type="password"
+                data-testid="new-password-input"
+              />
               {errors.newPassword && (
                 <p className="text-xs text-destructive">{errors.newPassword.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <label className="text-sm text-muted-fg">Confirm password</label>
-              <Input {...register("confirmPassword")} type="password" data-testid="confirm-password-input" />
+              <Input
+                {...register("confirmPassword")}
+                type="password"
+                data-testid="confirm-password-input"
+              />
               {errors.confirmPassword && (
                 <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
               )}
             </div>
             {changePassword.isError && (
-              <p className="text-xs text-destructive" data-testid="change-password-error">Incorrect current password</p>
+              <p className="text-xs text-destructive" data-testid="change-password-error">
+                Incorrect current password
+              </p>
             )}
-            {changePassword.isSuccess && <p className="text-xs text-success" data-testid="change-password-success">Password changed</p>}
-            <Button type="submit" size="sm" disabled={changePassword.isPending} data-testid="change-password-submit">
+            {changePassword.isSuccess && (
+              <p className="text-xs text-success" data-testid="change-password-success">
+                Password changed
+              </p>
+            )}
+            <Button
+              type="submit"
+              size="sm"
+              disabled={changePassword.isPending}
+              data-testid="change-password-submit"
+            >
               {changePassword.isPending ? "Saving..." : "Save"}
             </Button>
           </form>
         </CardContent>
       </Card>
-
     </div>
   );
 }

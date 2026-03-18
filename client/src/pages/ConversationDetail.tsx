@@ -15,8 +15,18 @@ export function ConversationDetailPage() {
     queryFn: () => conversationsApi.getThread(id),
   });
 
-  if (isLoading) return <div className="p-6 text-sm text-muted-fg" data-testid="conversation-loading">Loading...</div>;
-  if (!thread) return <div className="p-6 text-sm text-muted-fg" data-testid="conversation-not-found">Conversation not found</div>;
+  if (isLoading)
+    return (
+      <div className="p-6 text-sm text-muted-fg" data-testid="conversation-loading">
+        Loading...
+      </div>
+    );
+  if (!thread)
+    return (
+      <div className="p-6 text-sm text-muted-fg" data-testid="conversation-not-found">
+        Conversation not found
+      </div>
+    );
 
   return (
     <div className="p-6 space-y-4 max-w-3xl">
@@ -29,7 +39,9 @@ export function ConversationDetailPage() {
         </Link>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold" data-testid="thread-agent-id">{thread.agentId}</h1>
+            <h1 className="text-lg font-semibold" data-testid="thread-agent-id">
+              {thread.agentId}
+            </h1>
             <Badge data-testid="platform-badge">{thread.platform}</Badge>
           </div>
           <p className="text-xs text-muted-fg font-mono mt-0.5">{thread.id}</p>
@@ -46,9 +58,13 @@ export function ConversationDetailPage() {
               <Badge variant="outline" className="text-[10px]" data-testid="platform-badge">
                 {i.platform}
               </Badge>
-              <span className="text-xs font-mono" data-testid="identity-external-id">{i.externalId}</span>
+              <span className="text-xs font-mono" data-testid="identity-external-id">
+                {i.externalId}
+              </span>
               {i.metadata?.username && (
-                <span className="text-xs text-muted-fg" data-testid="identity-username">@{i.metadata.username}</span>
+                <span className="text-xs text-muted-fg" data-testid="identity-username">
+                  @{i.metadata.username}
+                </span>
               )}
               {!!i.metadata?.first_name && (
                 <span className="text-xs text-muted-fg">{i.metadata.first_name as string}</span>
@@ -92,7 +108,9 @@ export function ConversationDetailPage() {
           </div>
         ))}
         {thread.messages.length === 0 && (
-          <p className="text-sm text-muted-fg text-center py-8" data-testid="messages-empty">No messages</p>
+          <p className="text-sm text-muted-fg text-center py-8" data-testid="messages-empty">
+            No messages
+          </p>
         )}
       </div>
     </div>

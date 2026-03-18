@@ -52,10 +52,7 @@ export function MobileConversationDetail() {
       {/* Messages */}
       <div className="p-4 space-y-3 flex-1">
         {thread.messages.length === 0 && (
-          <div
-            data-testid="messages-empty"
-            className="text-center py-12 text-sm text-muted-fg"
-          >
+          <div data-testid="messages-empty" className="text-center py-12 text-sm text-muted-fg">
             No messages
           </div>
         )}

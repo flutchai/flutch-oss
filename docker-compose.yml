@@ -22,9 +22,9 @@ services:
 
   # PostgreSQL — single instance, separate DB per service
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     ports:
-      - "5432:5432"
+      - "5444:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-flutch}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flutch}

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-18
+
+### Added
+- **Knowledge Base management** — full CRUD for knowledge bases and articles via `/admin/api/knowledge-bases`
+- **Vector search** — pgvector-backed article indexing via `@flutchai/knowledge`; articles are automatically indexed on publish and removed on unpublish/delete
+- **KmsModule** — new NestJS module wiring TypeORM entities with `@flutchai/knowledge` library; validates required env vars at startup
+- **Desktop UI** — `KnowledgeBases` and `KnowledgeBaseDetail` pages with per-row pending state on toggle/delete
+- **Mobile UI** — `MobileKnowledgeBases` and `MobileKnowledgeBaseDetail` pages under `/admin/m/knowledge-bases`
+- Navigation entries (sidebar + bottom nav) for Knowledge Bases
+- Migration `202603150000-AddKmsTables` — creates `knowledge_bases` and `articles` tables
+- Validation: `@IsNotEmpty()` on KB name; publish blocked when article has no draft content
+- Unit tests covering all CRUD paths, publish/unpublish, index cleanup, and error cases
+- E2E tests with real PostgreSQL + pgvector
+
+### Fixed
+- CI e2e job now uses `pgvector/pgvector:pg16` instead of `postgres:16-alpine` — required for `CREATE EXTENSION vector` on app startup
+- `updateKb` throws `BadRequestException` on empty PATCH body instead of crashing TypeORM with an empty update set
+- Migration uses `gen_random_uuid()` (built-in) instead of `uuid_generate_v4()` which required the `uuid-ossp` extension
+
 ## [0.5.1] - 2026-03-14
 
 ### Added

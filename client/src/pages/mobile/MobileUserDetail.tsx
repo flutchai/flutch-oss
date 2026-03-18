@@ -61,9 +61,7 @@ export function MobileUserDetail() {
             <p className="font-mono text-sm break-all" data-testid="user-id">
               {user.id}
             </p>
-            <p className="text-xs text-muted-fg mt-2">
-              Created: {formatDate(user.createdAt)}
-            </p>
+            <p className="text-xs text-muted-fg mt-2">Created: {formatDate(user.createdAt)}</p>
           </CardContent>
         </Card>
 
@@ -84,9 +82,7 @@ export function MobileUserDetail() {
                   </Badge>
                   <div>
                     <p className="text-sm font-medium" data-testid="identity-external-id">
-                      {i.metadata?.username
-                        ? `@${i.metadata.username}`
-                        : i.externalId}
+                      {i.metadata?.username ? `@${i.metadata.username}` : i.externalId}
                     </p>
                     {!!i.metadata?.first_name && (
                       <p className="text-xs text-muted-fg">
@@ -136,15 +132,12 @@ export function MobileUserDetail() {
         {/* Merge */}
         <Card>
           <CardContent className="p-4">
-            <p
-              className="text-sm font-semibold mb-1"
-              data-testid="merge-dialog-title"
-            >
+            <p className="text-sm font-semibold mb-1" data-testid="merge-dialog-title">
               Merge with another user
             </p>
             <p className="text-xs text-muted-fg mb-3">
-              All identities and conversations will be transferred to the target user.
-              This user will be deleted.
+              All identities and conversations will be transferred to the target user. This user
+              will be deleted.
             </p>
             <div className="space-y-2">
               <Input
@@ -163,9 +156,7 @@ export function MobileUserDetail() {
               >
                 {merge.isPending ? "..." : "Merge"}
               </Button>
-              {merge.isError && (
-                <p className="text-xs text-destructive">Error: check the ID</p>
-              )}
+              {merge.isError && <p className="text-xs text-destructive">Error: check the ID</p>}
             </div>
           </CardContent>
         </Card>

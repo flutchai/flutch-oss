@@ -30,7 +30,7 @@ const mockStats = {
   total_threads: 200,
 };
 
-const mockStatus = { engine: true, database: true, ragflow: false };
+const mockStatus = { engine: true, database: true };
 
 const mockActivity = [
   {
@@ -80,18 +80,16 @@ describe("MobileDashboard", () => {
     expect(screen.getByTestId("stat-agents-count")).toHaveTextContent("—");
   });
 
-  it("renders status items for engine, database, ragflow", () => {
+  it("renders status items for engine and database", () => {
     render(<MobileDashboard />);
     expect(screen.getByTestId("status-engine")).toBeInTheDocument();
     expect(screen.getByTestId("status-database")).toBeInTheDocument();
-    expect(screen.getByTestId("status-ragflow")).toBeInTheDocument();
   });
 
   it("shows Online/Offline in status items", () => {
     render(<MobileDashboard />);
     expect(screen.getByTestId("status-engine")).toHaveTextContent("Online");
     expect(screen.getByTestId("status-database")).toHaveTextContent("Online");
-    expect(screen.getByTestId("status-ragflow")).toHaveTextContent("Offline");
   });
 
   it("renders activity list when data is present", () => {

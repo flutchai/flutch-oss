@@ -19,7 +19,14 @@ const mockStats = {
 
 const mockStatus = { engine: true, database: true, ragflow: false };
 const mockActivity = [
-  { id: "m-1", threadId: "t-1", agentId: "a-1", platform: "telegram", preview: "Hi", createdAt: "2024-01-01" },
+  {
+    id: "m-1",
+    threadId: "t-1",
+    agentId: "a-1",
+    platform: "telegram",
+    preview: "Hi",
+    createdAt: "2024-01-01",
+  },
 ];
 
 describe("dashboardApi", () => {

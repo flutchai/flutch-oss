@@ -31,10 +31,7 @@ export function MobileUsers() {
       {isLoading ? (
         <div data-testid="users-loading" className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-card rounded-lg border p-4 animate-pulse space-y-2"
-            >
+            <div key={i} className="bg-card rounded-lg border p-4 animate-pulse space-y-2">
               <div className="h-4 bg-muted rounded w-2/3" />
               <div className="h-3 bg-muted rounded w-1/3" />
               <div className="h-3 bg-muted rounded w-1/2" />
@@ -44,10 +41,7 @@ export function MobileUsers() {
       ) : (
         <div data-testid="mobile-users-list" className="space-y-3">
           {data?.data.length === 0 && (
-            <div
-              data-testid="users-empty"
-              className="py-12 text-center text-sm text-muted-fg"
-            >
+            <div data-testid="users-empty" className="py-12 text-center text-sm text-muted-fg">
               No users
             </div>
           )}
@@ -71,9 +65,7 @@ export function MobileUsers() {
                     </Badge>
                   ))}
                 </div>
-                <p className="text-xs text-muted-fg mt-2">
-                  Created: {formatDate(user.createdAt)}
-                </p>
+                <p className="text-xs text-muted-fg mt-2">Created: {formatDate(user.createdAt)}</p>
               </div>
             </Link>
           ))}

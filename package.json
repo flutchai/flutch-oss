@@ -1,6 +1,6 @@
 {
   "name": "@flutchai/flutch-oss",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Flutch OSS — standalone agent engine for on-premise deployment",
   "main": "dist/index.js",
   "scripts": {
@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@flutchai/flutch-sdk": "^0.2.7",
+    "@flutchai/knowledge": "0.1.3",
     "@langchain/anthropic": "^0.3.0",
     "@langchain/core": "^1.1.30",
     "@langchain/langgraph": "^1.2.0",

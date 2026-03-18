@@ -53,10 +53,7 @@ export function MobileConversations() {
       {isLoading ? (
         <div data-testid="conversations-loading" className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-card rounded-lg border p-4 animate-pulse space-y-2"
-            >
+            <div key={i} className="bg-card rounded-lg border p-4 animate-pulse space-y-2">
               <div className="h-4 bg-muted rounded w-1/3" />
               <div className="h-3 bg-muted rounded w-2/3" />
               <div className="h-3 bg-muted rounded w-1/2" />
@@ -83,9 +80,7 @@ export function MobileConversations() {
               <div className="bg-card rounded-lg border p-4 hover:border-primary/40 transition-colors">
                 <div className="flex items-center justify-between mb-2">
                   <Badge variant="outline">{thread.platform}</Badge>
-                  <span className="text-xs text-muted-fg">
-                    {relativeTime(thread.createdAt)}
-                  </span>
+                  <span className="text-xs text-muted-fg">{relativeTime(thread.createdAt)}</span>
                 </div>
                 <p className="text-sm font-mono truncate text-foreground">{thread.id}</p>
                 <div className="flex gap-2 mt-2 text-xs text-muted-fg">

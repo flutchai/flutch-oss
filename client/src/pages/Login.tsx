@@ -30,7 +30,9 @@ export function LoginPage({ redirectTo = "/" }: LoginPageProps) {
     resolver: zodResolver(schema),
   });
 
-  const changePasswordRedirect = redirectTo.startsWith("/m") ? "/m/change-password" : "/change-password";
+  const changePasswordRedirect = redirectTo.startsWith("/m")
+    ? "/m/change-password"
+    : "/change-password";
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => authApi.login(data.username, data.password),
@@ -48,35 +50,61 @@ export function LoginPage({ redirectTo = "/" }: LoginPageProps) {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary mb-4">
             <span className="text-white text-xl font-bold">F</span>
           </div>
-          <h1 data-testid="login-brand-title" className="text-2xl font-bold text-foreground">Flutch OSS</h1>
-          <p data-testid="login-brand-subtitle" className="text-sm text-muted-fg mt-1">Admin Panel</p>
+          <h1 data-testid="login-brand-title" className="text-2xl font-bold text-foreground">
+            Flutch OSS
+          </h1>
+          <p data-testid="login-brand-subtitle" className="text-sm text-muted-fg mt-1">
+            Admin Panel
+          </p>
         </div>
 
         <div className="bg-card rounded-lg border border-border p-6 shadow-sm">
           <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Username</label>
-              <Input {...register("username")} data-testid="login-username-input" placeholder="admin" autoFocus />
+              <Input
+                {...register("username")}
+                data-testid="login-username-input"
+                placeholder="admin"
+                autoFocus
+              />
               {errors.username && (
-                <p data-testid="login-username-error" className="text-xs text-destructive">{errors.username.message}</p>
+                <p data-testid="login-username-error" className="text-xs text-destructive">
+                  {errors.username.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Password</label>
-              <Input {...register("password")} data-testid="login-password-input" type="password" placeholder="••••••••" />
+              <Input
+                {...register("password")}
+                data-testid="login-password-input"
+                type="password"
+                placeholder="••••••••"
+              />
               {errors.password && (
-                <p data-testid="login-password-error" className="text-xs text-destructive">{errors.password.message}</p>
+                <p data-testid="login-password-error" className="text-xs text-destructive">
+                  {errors.password.message}
+                </p>
               )}
             </div>
 
             {mutation.isError && (
-              <p data-testid="login-error" className="text-xs text-destructive bg-destructive/10 rounded p-2">
+              <p
+                data-testid="login-error"
+                className="text-xs text-destructive bg-destructive/10 rounded p-2"
+              >
                 Invalid username or password
               </p>
             )}
 
-            <Button data-testid="login-submit-button" type="submit" className="w-full" disabled={mutation.isPending}>
+            <Button
+              data-testid="login-submit-button"
+              type="submit"
+              className="w-full"
+              disabled={mutation.isPending}
+            >
               {mutation.isPending ? "Signing in..." : "Sign in"}
             </Button>
           </form>

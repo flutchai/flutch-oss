@@ -31,8 +31,12 @@ export function ConversationsPage() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold" data-testid="conversations-heading">Conversations</h1>
-          <p className="text-sm text-muted-fg mt-0.5" data-testid="conversations-total">{data?.total ?? 0} conversations</p>
+          <h1 className="text-xl font-semibold" data-testid="conversations-heading">
+            Conversations
+          </h1>
+          <p className="text-sm text-muted-fg mt-0.5" data-testid="conversations-total">
+            {data?.total ?? 0} conversations
+          </p>
         </div>
         <div className="flex gap-2">
           {["", "telegram", "widget", "api"].map(p => (
@@ -55,7 +59,12 @@ export function ConversationsPage() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-12 text-center text-sm text-muted-fg" data-testid="conversations-loading">Loading...</div>
+            <div
+              className="py-12 text-center text-sm text-muted-fg"
+              data-testid="conversations-loading"
+            >
+              Loading...
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -74,7 +83,9 @@ export function ConversationsPage() {
                     <TableCell className="font-mono text-xs text-muted-fg" data-testid="thread-id">
                       {thread.id.slice(0, 8)}…
                     </TableCell>
-                    <TableCell className="font-medium text-sm" data-testid="thread-agent">{thread.agentId}</TableCell>
+                    <TableCell className="font-medium text-sm" data-testid="thread-agent">
+                      {thread.agentId}
+                    </TableCell>
                     <TableCell>
                       <PlatformBadge platform={thread.platform} />
                     </TableCell>
@@ -98,7 +109,11 @@ export function ConversationsPage() {
                 ))}
                 {data?.data.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-fg py-12" data-testid="conversations-empty">
+                    <TableCell
+                      colSpan={6}
+                      className="text-center text-muted-fg py-12"
+                      data-testid="conversations-empty"
+                    >
                       No conversations
                     </TableCell>
                   </TableRow>

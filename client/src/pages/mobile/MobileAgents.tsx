@@ -24,10 +24,7 @@ export function MobileAgents() {
       )}
 
       {!isLoading && agents?.length === 0 && (
-        <div
-          data-testid="agents-empty-state"
-          className="text-sm text-muted-fg"
-        >
+        <div data-testid="agents-empty-state" className="text-sm text-muted-fg">
           No agents. Add configuration to agents.json
         </div>
       )}
@@ -36,18 +33,14 @@ export function MobileAgents() {
         <div className="space-y-3" data-testid="agents-list">
           {agents.map(agent => {
             const hasPlatforms =
-              agent.platforms.telegram?.configured ||
-              agent.platforms.widget?.configured;
+              agent.platforms.telegram?.configured || agent.platforms.widget?.configured;
 
             return (
               <Card key={agent.id} data-testid={`agent-card-${agent.id}`}>
                 <CardContent className="p-4 space-y-3">
                   {/* Top: ID + graph type */}
                   <div className="flex items-start justify-between gap-2">
-                    <p
-                      className="font-mono text-sm font-semibold"
-                      data-testid="agent-id"
-                    >
+                    <p className="font-mono text-sm font-semibold" data-testid="agent-id">
                       {agent.id}
                     </p>
                     <Badge
