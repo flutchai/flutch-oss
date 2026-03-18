@@ -5,6 +5,7 @@ COPY package.json yarn.lock .yarnrc.yml ./
 RUN yarn install
 COPY . .
 RUN yarn build
+RUN yarn client:install
 RUN yarn client:build
 
 FROM node:20-alpine AS production
