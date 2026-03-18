@@ -12,6 +12,10 @@ import { ConversationDetailPage } from "@/pages/ConversationDetail";
 import { UsersPage } from "@/pages/Users";
 import { UserDetailPage } from "@/pages/UserDetail";
 import { SettingsPage } from "@/pages/Settings";
+import { KnowledgeBasesPage } from "@/pages/KnowledgeBases";
+import { KnowledgeBaseDetailPage } from "@/pages/KnowledgeBaseDetail";
+import { MobileKnowledgeBases } from "@/pages/mobile/MobileKnowledgeBases";
+import { MobileKnowledgeBaseDetail } from "@/pages/mobile/MobileKnowledgeBaseDetail";
 import { MobileConversations } from "@/pages/mobile/MobileConversations";
 import { MobileUsers } from "@/pages/mobile/MobileUsers";
 import { MobileDashboard } from "@/pages/mobile/MobileDashboard";
@@ -112,6 +116,20 @@ const settingsRoute = createRoute({
   beforeLoad: requireAuth,
 });
 
+const knowledgeBasesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/knowledge-bases",
+  component: KnowledgeBasesPage,
+  beforeLoad: requireAuth,
+});
+
+const knowledgeBaseDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/knowledge-bases/$id",
+  component: KnowledgeBaseDetailPage,
+  beforeLoad: requireAuth,
+});
+
 // ─── Mobile routes ────────────────────────────────────────────────────────────
 
 const mobileRootRoute = createRoute({
@@ -189,6 +207,20 @@ const mobileSettingsRoute = createRoute({
   beforeLoad: requireMobileAuth,
 });
 
+const mobileKnowledgeBasesRoute = createRoute({
+  getParentRoute: () => mobileRootRoute,
+  path: "/knowledge-bases",
+  component: MobileKnowledgeBases,
+  beforeLoad: requireMobileAuth,
+});
+
+const mobileKnowledgeBaseDetailRoute = createRoute({
+  getParentRoute: () => mobileRootRoute,
+  path: "/knowledge-bases/$id",
+  component: MobileKnowledgeBaseDetail,
+  beforeLoad: requireMobileAuth,
+});
+
 // ─── Route tree ───────────────────────────────────────────────────────────────
 
 const routeTree = rootRoute.addChildren([
@@ -201,6 +233,8 @@ const routeTree = rootRoute.addChildren([
   usersRoute,
   userDetailRoute,
   settingsRoute,
+  knowledgeBasesRoute,
+  knowledgeBaseDetailRoute,
   mobileRootRoute.addChildren([
     mobileLoginRoute,
     mobileChangePasswordRoute,
@@ -211,6 +245,8 @@ const routeTree = rootRoute.addChildren([
     mobileUsersRoute,
     mobileUserDetailRoute,
     mobileSettingsRoute,
+    mobileKnowledgeBasesRoute,
+    mobileKnowledgeBaseDetailRoute,
   ]),
 ]);
 

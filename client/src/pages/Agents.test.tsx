@@ -17,7 +17,11 @@ const mockAgents = [
   {
     id: "agent-roofing",
     graphType: "v1.0.0",
-    graphSettings: { model: "gpt-4o", systemPrompt: "You are a roofing assistant.", temperature: 0.7 },
+    graphSettings: {
+      model: "gpt-4o",
+      systemPrompt: "You are a roofing assistant.",
+      temperature: 0.7,
+    },
     platforms: {
       telegram: { configured: true, botTokenMasked: "...xyz9" },
       widget: null,
@@ -70,7 +74,9 @@ describe("AgentsPage", () => {
 
     render(<AgentsPage />);
 
-    expect(screen.getByTestId("agent-system-prompt")).toHaveTextContent("You are a roofing assistant.");
+    expect(screen.getByTestId("agent-system-prompt")).toHaveTextContent(
+      "You are a roofing assistant."
+    );
   });
 
   it("shows empty state when no agents", () => {

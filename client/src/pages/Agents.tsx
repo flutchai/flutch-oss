@@ -13,13 +13,19 @@ export function AgentsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 data-testid="agents-heading" className="text-xl font-semibold text-foreground">Agents</h1>
+        <h1 data-testid="agents-heading" className="text-xl font-semibold text-foreground">
+          Agents
+        </h1>
         <p data-testid="agents-subtitle" className="text-sm text-muted-fg mt-0.5">
           Agent configuration from agents.json (read-only)
         </p>
       </div>
 
-      {isLoading && <div data-testid="agents-loading" className="text-sm text-muted-fg">Loading...</div>}
+      {isLoading && (
+        <div data-testid="agents-loading" className="text-sm text-muted-fg">
+          Loading...
+        </div>
+      )}
 
       <div className="grid gap-4">
         {agents?.map(agent => (
@@ -27,7 +33,10 @@ export function AgentsPage() {
         ))}
         {agents?.length === 0 && (
           <Card>
-            <CardContent data-testid="agents-empty" className="py-12 text-center text-sm text-muted-fg">
+            <CardContent
+              data-testid="agents-empty"
+              className="py-12 text-center text-sm text-muted-fg"
+            >
               No agents. Add configuration to agents.json
             </CardContent>
           </Card>
@@ -46,8 +55,12 @@ function AgentCard({ agent }: { agent: Agent }) {
             <Bot size={16} className="text-primary" />
           </div>
           <div>
-            <CardTitle data-testid="agent-id" className="text-base">{agent.id}</CardTitle>
-            <p data-testid="agent-graph-type" className="text-xs text-muted-fg mt-0.5">{agent.graphType}</p>
+            <CardTitle data-testid="agent-id" className="text-base">
+              {agent.id}
+            </CardTitle>
+            <p data-testid="agent-graph-type" className="text-xs text-muted-fg mt-0.5">
+              {agent.graphType}
+            </p>
           </div>
           <div className="ml-auto flex gap-2">
             {agent.platforms.telegram?.configured && (
@@ -80,7 +93,10 @@ function AgentCard({ agent }: { agent: Agent }) {
           {agent.platforms.telegram && (
             <div>
               <p className="text-xs text-muted-fg mb-1">Bot Token</p>
-              <p data-testid="agent-bot-token" className="font-mono text-xs bg-muted rounded px-2 py-1">
+              <p
+                data-testid="agent-bot-token"
+                className="font-mono text-xs bg-muted rounded px-2 py-1"
+              >
                 {agent.platforms.telegram.botTokenMasked}
               </p>
             </div>
@@ -97,7 +113,10 @@ function AgentCard({ agent }: { agent: Agent }) {
         {agent.graphSettings.systemPrompt && (
           <div>
             <p className="text-xs text-muted-fg mb-1">System Prompt</p>
-            <p data-testid="agent-system-prompt" className="text-sm bg-muted rounded px-3 py-2 text-foreground/80 line-clamp-3">
+            <p
+              data-testid="agent-system-prompt"
+              className="text-sm bg-muted rounded px-3 py-2 text-foreground/80 line-clamp-3"
+            >
               {agent.graphSettings.systemPrompt}
             </p>
           </div>

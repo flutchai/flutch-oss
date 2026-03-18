@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { MessageSquare, Users, Bot, Activity } from "lucide-react";
+import { MessageSquare, Users, Bot, Activity, BookOpen } from "lucide-react";
 import { dashboardApi } from "@/api/dashboard";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { relativeTime } from "@/lib/utils";
 
@@ -29,13 +29,22 @@ export function MobileDashboard() {
   const statusItems = [
     { key: "engine", label: "Engine", ok: st?.engine ?? false },
     { key: "database", label: "Database", ok: st?.database ?? false },
-    { key: "ragflow", label: "RAGflow", ok: st?.ragflow ?? false },
   ];
 
   const statItems = [
     { label: "Agents", value: s?.agents_count ?? "—", icon: Bot, testId: "stat-agents-count" },
-    { label: "Threads today", value: s?.threads_today ?? "—", icon: MessageSquare, testId: "stat-threads-today" },
-    { label: "Messages today", value: s?.messages_today ?? "—", icon: Activity, testId: "stat-messages-today" },
+    {
+      label: "Threads today",
+      value: s?.threads_today ?? "—",
+      icon: MessageSquare,
+      testId: "stat-threads-today",
+    },
+    {
+      label: "Messages today",
+      value: s?.messages_today ?? "—",
+      icon: Activity,
+      testId: "stat-messages-today",
+    },
     { label: "Users", value: s?.users_total ?? "—", icon: Users, testId: "stat-users-total" },
   ];
 
@@ -76,11 +85,43 @@ export function MobileDashboard() {
                 <item.icon size={13} className="text-muted-fg" />
                 <p className="text-xs text-muted-fg">{item.label}</p>
               </div>
-              <p className="text-2xl font-bold" data-testid={item.testId}>{item.value}</p>
+              <p className="text-2xl font-bold" data-testid={item.testId}>
+                {item.value}
+              </p>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Knowledge Base stats */}
+      <Card data-testid="mobile-kb-stats">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <BookOpen size={13} />
+            Knowledge Base
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-3 gap-3 pt-0">
+          <div>
+            <p className="text-xs text-muted-fg mb-1">Bases</p>
+            <p className="text-xl font-bold" data-testid="stat-kb-count">
+              {s?.kb_count ?? "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-fg mb-1">Total</p>
+            <p className="text-xl font-bold" data-testid="stat-articles-total">
+              {s?.articles_total ?? "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-fg mb-1">Published</p>
+            <p className="text-xl font-bold" data-testid="stat-articles-published">
+              {s?.articles_published ?? "—"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent activity */}
       <div>

@@ -30,8 +30,18 @@ const mockThread = {
   },
   createdAt: "2024-01-15T10:00:00Z",
   messages: [
-    { id: "msg-1", content: "Сколько стоит крыша?", direction: "incoming", createdAt: "2024-01-15T10:01:00Z" },
-    { id: "msg-2", content: "Зависит от площади.", direction: "outgoing", createdAt: "2024-01-15T10:02:00Z" },
+    {
+      id: "msg-1",
+      content: "Сколько стоит крыша?",
+      direction: "incoming",
+      createdAt: "2024-01-15T10:01:00Z",
+    },
+    {
+      id: "msg-2",
+      content: "Зависит от площади.",
+      direction: "outgoing",
+      createdAt: "2024-01-15T10:02:00Z",
+    },
   ],
 };
 

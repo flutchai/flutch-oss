@@ -4,6 +4,8 @@ import { Repository, MoreThanOrEqual } from "typeorm";
 import { Thread } from "../../database/entities/thread.entity";
 import { Message, MessageDirection } from "../../database/entities/message.entity";
 import { User } from "../../database/entities/user.entity";
+import { KnowledgeBase } from "../../kms/entities/knowledge-base.entity";
+import { Article } from "../../kms/entities/article.entity";
 import { AgentConfigService } from "../../config/agent-config.service";
 
 @Injectable()
@@ -15,6 +17,10 @@ export class AdminDashboardService {
     private readonly messageRepo: Repository<Message>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(KnowledgeBase)
+    private readonly kbRepo: Repository<KnowledgeBase>,
+    @InjectRepository(Article)
+    private readonly articleRepo: Repository<Article>,
     private readonly agentConfigService: AgentConfigService
   ) {}
 
@@ -22,16 +28,36 @@ export class AdminDashboardService {
     const since = new Date();
     since.setHours(0, 0, 0, 0);
 
-    const [threads_today, messages_today, users_total, total_threads] = await Promise.all([
+    const [
+      threads_today,
+      messages_today,
+      users_total,
+      total_threads,
+      kb_count,
+      articles_total,
+      articles_published,
+    ] = await Promise.all([
       this.threadRepo.count({ where: { createdAt: MoreThanOrEqual(since) } }),
       this.messageRepo.count({ where: { createdAt: MoreThanOrEqual(since) } }),
       this.userRepo.count(),
       this.threadRepo.count(),
+      this.kbRepo.count(),
+      this.articleRepo.count(),
+      this.articleRepo.count({ where: { isPublished: true } }),
     ]);
 
     const agents_count = this.agentConfigService.getAgentCount();
 
-    return { threads_today, messages_today, users_total, total_threads, agents_count };
+    return {
+      threads_today,
+      messages_today,
+      users_total,
+      total_threads,
+      agents_count,
+      kb_count,
+      articles_total,
+      articles_published,
+    };
   }
 
   async getStatus() {
@@ -47,7 +73,6 @@ export class AdminDashboardService {
     return {
       engine: true,
       database: db_connected,
-      ragflow: false, // not implemented yet
     };
   }
 

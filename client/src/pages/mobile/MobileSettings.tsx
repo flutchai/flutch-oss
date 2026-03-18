@@ -66,11 +66,7 @@ export function MobileSettings() {
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-fg">Engine</p>
           <div className="flex items-center justify-between">
             <span className="text-sm">Config mode</span>
-            <Badge
-              variant="outline"
-              className="font-mono"
-              data-testid="settings-config-mode"
-            >
+            <Badge variant="outline" className="font-mono" data-testid="settings-config-mode">
               {settings?.configMode ?? "—"}
             </Badge>
           </div>
@@ -157,10 +153,7 @@ export function MobileSettings() {
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-fg mb-3">
             Change password
           </p>
-          <form
-            onSubmit={handleSubmit(d => changePassword.mutate(d))}
-            className="space-y-3"
-          >
+          <form onSubmit={handleSubmit(d => changePassword.mutate(d))} className="space-y-3">
             <Input
               {...register("currentPassword")}
               type="password"

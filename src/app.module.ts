@@ -11,6 +11,7 @@ import { PlatformConnectorModule } from "./modules/platform-connector/platform-c
 import { CheckpointerModule } from "./modules/checkpointer/checkpointer.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { LangfuseModule } from "./modules/langfuse/langfuse.module";
+import { KmsModule } from "./modules/kms/kms.module";
 import {
   BaseGraphServiceController,
   BuilderRegistryService,
@@ -49,6 +50,7 @@ const logger = new Logger("AppModule");
     DatabaseModule,
     PlatformConnectorModule,
     AdminModule,
+    KmsModule.forRoot(),
   ],
   controllers: [RootController, BaseGraphServiceController],
   providers: [

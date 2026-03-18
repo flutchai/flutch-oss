@@ -29,8 +29,18 @@ export function UserDetailPage() {
     },
   });
 
-  if (isLoading) return <div className="p-6 text-sm text-muted-fg" data-testid="user-loading">Loading...</div>;
-  if (!user) return <div className="p-6 text-sm text-muted-fg" data-testid="user-not-found">User not found</div>;
+  if (isLoading)
+    return (
+      <div className="p-6 text-sm text-muted-fg" data-testid="user-loading">
+        Loading...
+      </div>
+    );
+  if (!user)
+    return (
+      <div className="p-6 text-sm text-muted-fg" data-testid="user-not-found">
+        User not found
+      </div>
+    );
 
   return (
     <div className="p-6 space-y-4 max-w-2xl">
@@ -41,8 +51,12 @@ export function UserDetailPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-lg font-semibold" data-testid="user-heading">User</h1>
-          <p className="text-xs text-muted-fg font-mono" data-testid="user-id">{user.id}</p>
+          <h1 className="text-lg font-semibold" data-testid="user-heading">
+            User
+          </h1>
+          <p className="text-xs text-muted-fg font-mono" data-testid="user-id">
+            {user.id}
+          </p>
         </div>
         <Button
           size="sm"
@@ -59,9 +73,12 @@ export function UserDetailPage() {
       {showMerge && (
         <Card className="border-warning/40 bg-warning/5">
           <CardContent className="p-4 space-y-3">
-            <p className="text-sm font-medium" data-testid="merge-title">Merge this user with another</p>
+            <p className="text-sm font-medium" data-testid="merge-title">
+              Merge this user with another
+            </p>
             <p className="text-xs text-muted-fg" data-testid="merge-description">
-              All identities and conversations of <strong>this</strong> user will be transferred to the target. This user will be deleted.
+              All identities and conversations of <strong>this</strong> user will be transferred to
+              the target. This user will be deleted.
             </p>
             <div className="flex gap-2">
               <Input
@@ -81,7 +98,11 @@ export function UserDetailPage() {
                 {merge.isPending ? "..." : "Merge"}
               </Button>
             </div>
-            {merge.isError && <p className="text-xs text-destructive" data-testid="merge-error">Error: check the ID</p>}
+            {merge.isError && (
+              <p className="text-xs text-destructive" data-testid="merge-error">
+                Error: check the ID
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -89,7 +110,9 @@ export function UserDetailPage() {
       {/* Identities */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm" data-testid="identities-heading">Identities</CardTitle>
+          <CardTitle className="text-sm" data-testid="identities-heading">
+            Identities
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {user.identities?.map(i => (
@@ -98,30 +121,50 @@ export function UserDetailPage() {
               className="flex items-center gap-3 text-sm bg-muted rounded p-3"
               data-testid="identity-row"
             >
-              <Badge variant="outline" data-testid="identity-platform">{i.platform}</Badge>
-              <span className="font-mono text-xs" data-testid="identity-external-id">{i.externalId}</span>
+              <Badge variant="outline" data-testid="identity-platform">
+                {i.platform}
+              </Badge>
+              <span className="font-mono text-xs" data-testid="identity-external-id">
+                {i.externalId}
+              </span>
               {i.metadata?.username && (
-                <span className="text-muted-fg" data-testid="identity-username">@{i.metadata.username}</span>
+                <span className="text-muted-fg" data-testid="identity-username">
+                  @{i.metadata.username}
+                </span>
               )}
               {!!i.metadata?.first_name && (
-                <span className="text-muted-fg" data-testid="identity-first-name">{i.metadata.first_name as string}</span>
+                <span className="text-muted-fg" data-testid="identity-first-name">
+                  {i.metadata.first_name as string}
+                </span>
               )}
             </div>
           ))}
-          {!user.identities?.length && <p className="text-sm text-muted-fg" data-testid="identities-empty">No identities</p>}
+          {!user.identities?.length && (
+            <p className="text-sm text-muted-fg" data-testid="identities-empty">
+              No identities
+            </p>
+          )}
         </CardContent>
       </Card>
 
       {/* Threads */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2" data-testid="conversations-heading">
+          <CardTitle
+            className="text-sm flex items-center gap-2"
+            data-testid="conversations-heading"
+          >
             <MessageSquare size={13} /> Conversations
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {user.threads?.map(t => (
-            <Link key={t.id} to="/conversations/$id" params={{ id: t.id }} data-testid="thread-link">
+            <Link
+              key={t.id}
+              to="/conversations/$id"
+              params={{ id: t.id }}
+              data-testid="thread-link"
+            >
               <div className="flex items-center gap-3 text-sm bg-muted hover:bg-muted/70 rounded p-3 transition-colors">
                 <Badge>{t.platform}</Badge>
                 <span className="font-medium">{t.agentId}</span>
@@ -129,7 +172,11 @@ export function UserDetailPage() {
               </div>
             </Link>
           ))}
-          {!user.threads?.length && <p className="text-sm text-muted-fg" data-testid="conversations-empty">No conversations</p>}
+          {!user.threads?.length && (
+            <p className="text-sm text-muted-fg" data-testid="conversations-empty">
+              No conversations
+            </p>
+          )}
         </CardContent>
       </Card>
 

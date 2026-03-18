@@ -53,7 +53,9 @@ export function ChangePasswordPage({ redirectTo = "/" }: ChangePasswordPageProps
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-warning/20 mb-4">
             <ShieldAlert className="text-warning" size={24} />
           </div>
-          <h1 data-testid="change-password-heading" className="text-2xl font-bold text-foreground">Change password</h1>
+          <h1 data-testid="change-password-heading" className="text-2xl font-bold text-foreground">
+            Change password
+          </h1>
           <p data-testid="change-password-subtitle" className="text-sm text-muted-fg mt-1">
             You must change your password before continuing
           </p>
@@ -62,7 +64,9 @@ export function ChangePasswordPage({ redirectTo = "/" }: ChangePasswordPageProps
         <div className="bg-card rounded-lg border border-border p-6 shadow-sm">
           <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-4">
             <div className="space-y-1.5">
-              <label data-testid="current-password-label" className="text-sm font-medium">Current password</label>
+              <label data-testid="current-password-label" className="text-sm font-medium">
+                Current password
+              </label>
               <Input
                 {...register("currentPassword")}
                 data-testid="current-password-input"
@@ -71,12 +75,16 @@ export function ChangePasswordPage({ redirectTo = "/" }: ChangePasswordPageProps
                 autoFocus
               />
               {errors.currentPassword && (
-                <p data-testid="current-password-error" className="text-xs text-destructive">{errors.currentPassword.message}</p>
+                <p data-testid="current-password-error" className="text-xs text-destructive">
+                  {errors.currentPassword.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <label data-testid="new-password-label" className="text-sm font-medium">New password</label>
+              <label data-testid="new-password-label" className="text-sm font-medium">
+                New password
+              </label>
               <Input
                 {...register("newPassword")}
                 data-testid="new-password-input"
@@ -84,25 +92,44 @@ export function ChangePasswordPage({ redirectTo = "/" }: ChangePasswordPageProps
                 placeholder="At least 8 characters"
               />
               {errors.newPassword && (
-                <p data-testid="new-password-error" className="text-xs text-destructive">{errors.newPassword.message}</p>
+                <p data-testid="new-password-error" className="text-xs text-destructive">
+                  {errors.newPassword.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <label data-testid="confirm-password-label" className="text-sm font-medium">Confirm password</label>
-              <Input {...register("confirmPassword")} data-testid="confirm-password-input" type="password" placeholder="••••••••" />
+              <label data-testid="confirm-password-label" className="text-sm font-medium">
+                Confirm password
+              </label>
+              <Input
+                {...register("confirmPassword")}
+                data-testid="confirm-password-input"
+                type="password"
+                placeholder="••••••••"
+              />
               {errors.confirmPassword && (
-                <p data-testid="confirm-password-error" className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+                <p data-testid="confirm-password-error" className="text-xs text-destructive">
+                  {errors.confirmPassword.message}
+                </p>
               )}
             </div>
 
             {mutation.isError && (
-              <p data-testid="change-password-error" className="text-xs text-destructive bg-destructive/10 rounded p-2">
+              <p
+                data-testid="change-password-error"
+                className="text-xs text-destructive bg-destructive/10 rounded p-2"
+              >
                 Incorrect current password
               </p>
             )}
 
-            <Button data-testid="change-password-submit" type="submit" className="w-full" disabled={mutation.isPending}>
+            <Button
+              data-testid="change-password-submit"
+              type="submit"
+              className="w-full"
+              disabled={mutation.isPending}
+            >
               {mutation.isPending ? "Saving..." : "Save password"}
             </Button>
           </form>

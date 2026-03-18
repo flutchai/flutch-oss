@@ -1,13 +1,28 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
-import { LayoutDashboard, Bot, MessageSquare, Users, Settings, LogOut, Smartphone } from "lucide-react";
+import {
+  LayoutDashboard,
+  Bot,
+  MessageSquare,
+  Users,
+  Settings,
+  LogOut,
+  Smartphone,
+  BookOpen,
+} from "lucide-react";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/agents", icon: Bot, label: "Agents" },
-  { to: "/conversations", icon: MessageSquare, label: "Conversations" },
-  { to: "/users", icon: Users, label: "Users" },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard", testId: "nav-dashboard" },
+  { to: "/agents", icon: Bot, label: "Agents", testId: "nav-agents" },
+  {
+    to: "/conversations",
+    icon: MessageSquare,
+    label: "Conversations",
+    testId: "nav-conversations",
+  },
+  { to: "/users", icon: Users, label: "Users", testId: "nav-users" },
+  { to: "/knowledge-bases", icon: BookOpen, label: "Knowledge Base", testId: "nav-knowledge-base" },
 ];
 
 export function Sidebar() {
@@ -22,21 +37,28 @@ export function Sidebar() {
           <span className="text-white text-sm font-bold">F</span>
         </div>
         <div>
-          <p data-testid="sidebar-brand-title" className="text-sidebar-fg text-sm font-semibold leading-none">Flutch OSS</p>
-          <p data-testid="sidebar-brand-subtitle" className="text-sidebar-fg/50 text-xs mt-0.5">Admin Panel</p>
+          <p
+            data-testid="sidebar-brand-title"
+            className="text-sidebar-fg text-sm font-semibold leading-none"
+          >
+            Flutch OSS
+          </p>
+          <p data-testid="sidebar-brand-subtitle" className="text-sidebar-fg/50 text-xs mt-0.5">
+            Admin Panel
+          </p>
         </div>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {navItems.map(({ to, icon: Icon, label }) => {
+        {navItems.map(({ to, icon: Icon, label, testId }) => {
           const isActive =
             to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
           return (
             <Link
               key={to}
               to={to}
-              data-testid={`nav-${label.toLowerCase()}`}
+              data-testid={testId}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive

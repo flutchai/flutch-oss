@@ -4,6 +4,8 @@ import { AdminDashboardService } from "./admin-dashboard.service";
 import { Thread } from "../../database/entities/thread.entity";
 import { Message, MessageDirection } from "../../database/entities/message.entity";
 import { User } from "../../database/entities/user.entity";
+import { KnowledgeBase } from "../../kms/entities/knowledge-base.entity";
+import { Article } from "../../kms/entities/article.entity";
 import { AgentConfigService } from "../../config/agent-config.service";
 
 describe("AdminDashboardService", () => {
@@ -11,12 +13,16 @@ describe("AdminDashboardService", () => {
   let threadRepo: { count: jest.Mock };
   let messageRepo: { count: jest.Mock; find: jest.Mock };
   let userRepo: { count: jest.Mock };
+  let kbRepo: { count: jest.Mock };
+  let articleRepo: { count: jest.Mock };
   let agentConfigService: { getAgentCount: jest.Mock };
 
   beforeEach(async () => {
     threadRepo = { count: jest.fn().mockResolvedValue(5) };
     messageRepo = { count: jest.fn().mockResolvedValue(20), find: jest.fn().mockResolvedValue([]) };
     userRepo = { count: jest.fn().mockResolvedValue(10) };
+    kbRepo = { count: jest.fn().mockResolvedValue(3) };
+    articleRepo = { count: jest.fn().mockResolvedValue(12) };
     agentConfigService = { getAgentCount: jest.fn().mockReturnValue(2) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -25,6 +31,8 @@ describe("AdminDashboardService", () => {
         { provide: getRepositoryToken(Thread), useValue: threadRepo },
         { provide: getRepositoryToken(Message), useValue: messageRepo },
         { provide: getRepositoryToken(User), useValue: userRepo },
+        { provide: getRepositoryToken(KnowledgeBase), useValue: kbRepo },
+        { provide: getRepositoryToken(Article), useValue: articleRepo },
         { provide: AgentConfigService, useValue: agentConfigService },
       ],
     }).compile();
@@ -44,6 +52,9 @@ describe("AdminDashboardService", () => {
         users_total: 10,
         total_threads: 5,
         agents_count: 2,
+        kb_count: 3,
+        articles_total: 12,
+        articles_published: 12,
       });
     });
 
@@ -60,7 +71,7 @@ describe("AdminDashboardService", () => {
     it("returns engine: true, database: true when userRepo.count succeeds", async () => {
       const result = await service.getStatus();
 
-      expect(result).toEqual({ engine: true, database: true, ragflow: false });
+      expect(result).toEqual({ engine: true, database: true });
     });
 
     it("returns database: false when userRepo.count throws", async () => {
@@ -68,7 +79,7 @@ describe("AdminDashboardService", () => {
 
       const result = await service.getStatus();
 
-      expect(result).toEqual({ engine: true, database: false, ragflow: false });
+      expect(result).toEqual({ engine: true, database: false });
     });
   });
 

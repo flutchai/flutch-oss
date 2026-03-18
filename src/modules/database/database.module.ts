@@ -6,6 +6,8 @@ import { UserIdentity } from "./entities/user-identity.entity";
 import { Thread } from "./entities/thread.entity";
 import { Message } from "./entities/message.entity";
 import { AdminUser } from "./entities/admin-user.entity";
+import { KnowledgeBase } from "../kms/entities/knowledge-base.entity";
+import { Article } from "../kms/entities/article.entity";
 
 @Module({
   imports: [
@@ -19,7 +21,7 @@ import { AdminUser } from "./entities/admin-user.entity";
         username: config.getOrThrow<string>("POSTGRES_USER"),
         password: config.getOrThrow<string>("POSTGRES_PASSWORD"),
         database: config.getOrThrow<string>("POSTGRES_DB"),
-        entities: [User, UserIdentity, Thread, Message, AdminUser],
+        entities: [User, UserIdentity, Thread, Message, AdminUser, KnowledgeBase, Article],
         migrations: [__dirname + "/../../migrations/*.{ts,js}"],
         migrationsRun: true,
         synchronize: false,
