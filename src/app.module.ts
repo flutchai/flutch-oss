@@ -4,7 +4,7 @@ import { ConfigModule } from "@nestjs/config";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 import { LoggingInterceptor } from "./logging.interceptor";
 import { RootController } from "./root.controller";
-import { AgentV1Builder } from "./graph";
+import { SimpleGraphBuilder, SalesGraphBuilder } from "./graph";
 import { EngineModule } from "./modules/engine/engine.module";
 import { DatabaseModule } from "./modules/database/database.module";
 import { PlatformConnectorModule } from "./modules/platform-connector/platform-connector.module";
@@ -35,9 +35,13 @@ const logger = new Logger("AppModule");
           baseGraphType: "flutch.agent",
           versions: [
             {
-              version: "1.0.0",
-              builderClass: AgentV1Builder,
+              version: "simple",
+              builderClass: SimpleGraphBuilder,
               isDefault: true,
+            },
+            {
+              version: "sales",
+              builderClass: SalesGraphBuilder,
             },
           ],
           defaultVersionStrategy: "latest",
@@ -58,19 +62,21 @@ const logger = new Logger("AppModule");
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
     },
-    AgentV1Builder,
+    SimpleGraphBuilder,
+    SalesGraphBuilder,
   ],
   exports: [ConfigModule],
 })
 export class AppModule implements OnModuleInit {
   constructor(
-    private readonly agentV1Builder: AgentV1Builder,
+    private readonly simpleBuilder: SimpleGraphBuilder,
+    private readonly salesBuilder: SalesGraphBuilder,
     private readonly builderRegistry: BuilderRegistryService
   ) {}
 
   async onModuleInit() {
-    this.builderRegistry.registerBuilder(this.agentV1Builder);
-    logger.log("Registered AgentV1Builder with graph type: " + this.agentV1Builder.graphType);
-    logger.log("🚀 FLUTCH OSS AGENT ENGINE INITIALIZED");
+    this.builderRegistry.registerBuilder(this.simpleBuilder);
+    this.builderRegistry.registerBuilder(this.salesBuilder);
+    logger.log(`Registered graphs: ${this.simpleBuilder.graphType}, ${this.salesBuilder.graphType}`);
   }
 }

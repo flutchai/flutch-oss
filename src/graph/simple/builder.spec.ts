@@ -1,9 +1,9 @@
-import { AgentV1Builder } from "./builder";
-import * as modelFactory from "./model.factory";
+import { SimpleGraphBuilder } from "./builder";
+import * as modelFactory from "../model.factory";
 import { StateGraph } from "@langchain/langgraph";
 import { LangfuseService } from "../../modules/langfuse/langfuse.service";
 
-jest.mock("./model.factory", () => ({
+jest.mock("../model.factory", () => ({
   createModel: jest.fn(),
 }));
 
@@ -45,12 +45,12 @@ const basePayload = {
     configurable: {
       thread_id: "550e8400-e29b-41d4-a716-446655440000",
       context: { userId: "user-1", agentId: "roofing-agent", companyId: "co-1" },
-      graphSettings: { model: "gpt-4o-mini", graphType: "flutch.agent::1.0.0" },
+      graphSettings: { model: "gpt-4o-mini", graphType: "flutch.agent::simple" },
     },
   },
 } as any;
 
-describe("AgentV1Builder", () => {
+describe("SimpleGraphBuilder", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockModel.withConfig.mockReturnValue(mockModel);
@@ -60,21 +60,21 @@ describe("AgentV1Builder", () => {
 
   describe("metadata", () => {
     it("has correct graphType", () => {
-      const builder = new AgentV1Builder(null, null);
-      expect(builder.graphType).toBe("flutch.agent::1.0.0");
+      const builder = new SimpleGraphBuilder(null, null);
+      expect(builder.graphType).toBe("flutch.agent::simple");
     });
 
     it("has correct version", () => {
-      const builder = new AgentV1Builder(null, null);
-      expect(builder.version).toBe("1.0.0");
+      const builder = new SimpleGraphBuilder(null, null);
+      expect(builder.version).toBe("simple");
     });
   });
 
   describe("buildGraph — without checkpointer, without langfuse", () => {
-    let builder: AgentV1Builder;
+    let builder: SimpleGraphBuilder;
 
     beforeEach(() => {
-      builder = new AgentV1Builder(null, null);
+      builder = new SimpleGraphBuilder(null, null);
     });
 
     it("builds a compiled graph", async () => {
@@ -91,7 +91,7 @@ describe("AgentV1Builder", () => {
       await builder.buildGraph(basePayload);
       expect(modelFactory.createModel).toHaveBeenCalledWith({
         model: "gpt-4o-mini",
-        graphType: "flutch.agent::1.0.0",
+        graphType: "flutch.agent::simple",
       });
     });
 
@@ -109,17 +109,17 @@ describe("AgentV1Builder", () => {
 
   describe("buildGraph — with checkpointer", () => {
     it("compiles graph with the injected checkpointer", async () => {
-      const builder = new AgentV1Builder(mockCheckpointer, null);
+      const builder = new SimpleGraphBuilder(mockCheckpointer, null);
       await builder.buildGraph(basePayload);
       expect(compileSpy).toHaveBeenCalledWith({ checkpointer: mockCheckpointer });
     });
   });
 
   describe("buildGraph — with LangFuse enabled", () => {
-    let builder: AgentV1Builder;
+    let builder: SimpleGraphBuilder;
 
     beforeEach(() => {
-      builder = new AgentV1Builder(null, mockLangfuseService);
+      builder = new SimpleGraphBuilder(null, mockLangfuseService);
     });
 
     it("calls createCallbackHandler with context from payload", async () => {
@@ -155,7 +155,7 @@ describe("AgentV1Builder", () => {
 
   describe("buildGraph — with LangFuse disabled", () => {
     it("does not bind callbacks when langfuse returns null handler", async () => {
-      const builder = new AgentV1Builder(null, disabledLangfuseService);
+      const builder = new SimpleGraphBuilder(null, disabledLangfuseService);
       await builder.buildGraph(basePayload);
       expect(mockModel.withConfig).not.toHaveBeenCalled();
     });
@@ -163,7 +163,7 @@ describe("AgentV1Builder", () => {
 
   describe("buildGraph — checkpointer + langfuse together", () => {
     it("passes both checkpointer and langfuse callback", async () => {
-      const builder = new AgentV1Builder(mockCheckpointer, mockLangfuseService);
+      const builder = new SimpleGraphBuilder(mockCheckpointer, mockLangfuseService);
       await builder.buildGraph(basePayload);
       expect(compileSpy).toHaveBeenCalledWith({ checkpointer: mockCheckpointer });
       expect(mockModel.withConfig).toHaveBeenCalledWith({ callbacks: [mockLangfuseCallback] });
@@ -172,7 +172,7 @@ describe("AgentV1Builder", () => {
 
   describe("buildGraph — systemPrompt handling", () => {
     it("builds graph when systemPrompt is provided", async () => {
-      const builder = new AgentV1Builder(null, null);
+      const builder = new SimpleGraphBuilder(null, null);
       const graph = await builder.buildGraph({
         ...basePayload,
         config: {
@@ -189,7 +189,7 @@ describe("AgentV1Builder", () => {
   describe("generateNode — graph invocation", () => {
     it("returns text from model response", async () => {
       const { HumanMessage } = await import("@langchain/core/messages");
-      const builder = new AgentV1Builder(null, null);
+      const builder = new SimpleGraphBuilder(null, null);
       const graph = await builder.buildGraph(basePayload);
       const result = await graph.invoke({ messages: [new HumanMessage("hello")] });
       expect(result.text).toBe("test response");
@@ -197,7 +197,7 @@ describe("AgentV1Builder", () => {
 
     it("prepends SystemMessage when systemPrompt is set", async () => {
       const { HumanMessage } = await import("@langchain/core/messages");
-      const builder = new AgentV1Builder(null, null);
+      const builder = new SimpleGraphBuilder(null, null);
       const graph = await builder.buildGraph({
         ...basePayload,
         config: {
