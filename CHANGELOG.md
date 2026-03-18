@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-03-18
+
+### Added
+- **Docker Publish workflow** — GitHub Actions pipeline that builds and pushes the Docker image to GHCR (`ghcr.io/flutchai/flutch-oss`) on every `v*` tag push; produces `x.y.z`, `x.y`, and `latest` tags with GHA layer caching
+
 ## [0.6.0] - 2026-03-18
 
 ### Added
