@@ -14,7 +14,7 @@ describe("AdminDashboardController", () => {
   beforeEach(async () => {
     dashboardService = {
       getStats: jest.fn().mockResolvedValue({ threads_today: 5, agents_count: 2 }),
-      getStatus: jest.fn().mockResolvedValue({ engine: true, database: true, ragflow: false }),
+      getStatus: jest.fn().mockResolvedValue({ engine: true, database: true }),
       getRecentActivity: jest.fn().mockResolvedValue([]),
     };
 
@@ -40,7 +40,7 @@ describe("AdminDashboardController", () => {
     const result = await controller.getStatus();
 
     expect(dashboardService.getStatus).toHaveBeenCalled();
-    expect(result).toEqual({ engine: true, database: true, ragflow: false });
+    expect(result).toEqual({ engine: true, database: true });
   });
 
   it("getActivity delegates to dashboardService.getRecentActivity", async () => {

@@ -28,9 +28,11 @@ Two modes:
 | Component | Technology |
 |-----------|-----------|
 | Agent Engine | NestJS + LangGraph |
-| Knowledge Base | Ragflow |
+| Database | PostgreSQL 16 + pgvector |
+| Knowledge Base | pgvector |
+| Tracing | LangFuse (optional) |
 | Monitoring | Prometheus + Promtail |
-| Database | MongoDB (graph checkpoints) |
+| Admin UI | React + Vite (served at `/admin/`) |
 
 ## Getting started
 
@@ -44,12 +46,21 @@ Two modes:
 
 ```bash
 cp .env.example .env
-# Fill in your API keys
+# Fill in your API keys and secrets
 
 docker compose up
 ```
 
 Engine available at `http://localhost:3000`.
+Admin UI available at `http://localhost:3000/admin/`.
+
+### Pull from GHCR
+
+A pre-built image is published to GitHub Container Registry on every release:
+
+```bash
+docker pull ghcr.io/flutchai/flutch-oss:latest
+```
 
 ### Local development
 
@@ -65,17 +76,66 @@ yarn dev
 
 Copy `.env.example` to `.env` and fill in the values.
 
+**Core**
+
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
+| `CONFIG_MODE` | Yes | — | Agent config source: `local` (agents.json) or `platform` (Flutch API) |
 | `OPENAI_API_KEY` | * | — | OpenAI API key (required for GPT models) |
 | `ANTHROPIC_API_KEY` | * | — | Anthropic API key (required for Claude models) |
-| `MONGODB_URI` | No | in-memory | MongoDB connection string for conversation checkpoints |
-| `CONFIG_MODE` | No | `local` | Agent config source: `local` (agents.json) or `platform` (Flutch API) |
-| `API_URL` | connected mode | — | Flutch Platform base URL (e.g. `https://api.flutch.ai`) |
-| `INTERNAL_API_TOKEN` | connected mode | — | Bearer token for Flutch Platform auth |
+| `GOOGLE_API_KEY` | * | — | Google API key (required for Gemini models) |
 | `PORT` | No | `3000` | HTTP port the engine listens on |
 
 \* At least one LLM key is required, depending on the models you configure.
+
+**PostgreSQL**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `POSTGRES_HOST` | Yes | — | PostgreSQL host |
+| `POSTGRES_PORT` | Yes | — | PostgreSQL port |
+| `POSTGRES_USER` | Yes | — | PostgreSQL user |
+| `POSTGRES_PASSWORD` | Yes | — | PostgreSQL password |
+| `POSTGRES_DB` | Yes | — | PostgreSQL database name |
+
+**Admin UI**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ADMIN_PASSWORD` | Yes | — | Bootstrap password — invalidated after first login |
+| `ADMIN_JWT_SECRET` | Yes | — | Secret key for JWT signing |
+| `WEBHOOK_BASE_URL` | Yes | — | Public base URL of this server (used for Telegram webhook registration) |
+
+**Flutch Platform (connected mode)**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `API_URL` | connected mode | — | Flutch Platform base URL |
+| `INTERNAL_API_TOKEN` | connected mode | — | Bearer token for Flutch Platform auth |
+
+**Telegram Platform Connector**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `TELEGRAM_BOT_TOKEN_<AGENTID>` | No | — | Per-agent Telegram bot token. Replace `<AGENTID>` with the agent ID in uppercase with dashes converted to underscores (e.g. `TELEGRAM_BOT_TOKEN_ROOFING_AGENT`) |
+| `TELEGRAM_WEBHOOK_SECRET` | No | — | Optional secret token for webhook verification |
+
+**LangFuse tracing (optional)**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `LANGFUSE_ENABLED` | No | `false` | Enable LangFuse tracing |
+| `LANGFUSE_PUBLIC_KEY` | No | — | LangFuse public key |
+| `LANGFUSE_SECRET_KEY` | No | — | LangFuse secret key |
+| `LANGFUSE_BASE_URL` | No | — | Explicit LangFuse URL (overrides host+port) |
+| `LANGFUSE_HOST` | No | — | LangFuse host (used with `LANGFUSE_PORT`) |
+| `LANGFUSE_PORT` | No | — | LangFuse port (used with `LANGFUSE_HOST`) |
+
+**Monitoring**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `LOKI_URL` | No | — | Loki push endpoint for Promtail |
 
 ### Agent configuration (agents.json)
 
@@ -118,10 +178,37 @@ File format — a flat map of `agentId → config`:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `model` | string | Yes | Model name, e.g. `gpt-4o-mini`, `claude-3-5-sonnet-20241022` |
-| `provider` | `openai` \| `anthropic` | No | Inferred from model name if omitted |
+| `provider` | `openai` \| `anthropic` \| `google` | No | Inferred from model name if omitted |
 | `systemPrompt` | string | No | System prompt prepended to every conversation |
 | `temperature` | number | No | Sampling temperature (default: `0.7`) |
 | `maxTokens` | number | No | Max output tokens (default: `2048`) |
+
+## Admin UI
+
+A built-in admin UI is served at `/admin/`. It provides:
+
+- **Dashboard** — overview stats
+- **Agents** — list and inspect configured agents
+- **Conversations** — browse conversation history
+- **Users** — manage users
+- **Knowledge Bases** — create and manage knowledge bases; add, edit, and publish articles for vector search
+- **Settings** — configure platform URL, API keys, and webhook base URL
+
+The UI is responsive — a mobile-optimized layout is available at `/admin/m/` and is served automatically based on user-agent.
+
+**First login**: use the `ADMIN_PASSWORD` from your `.env`. You will be prompted to set a new password immediately after.
+
+## Knowledge Base
+
+Knowledge bases store articles indexed with pgvector for semantic search. Articles are automatically indexed when published and removed from the index when unpublished or deleted.
+
+Manage knowledge bases via the Admin UI or the API at `/admin/api/knowledge-bases`.
+
+## Platform Connectors
+
+### Telegram
+
+Register a Telegram bot token per agent using the `TELEGRAM_BOT_TOKEN_<AGENTID>` env variable. Telegram will call the webhook at `{WEBHOOK_BASE_URL}/platform/telegram/{agentId}`.
 
 ## Customizing the agent graph
 
@@ -141,18 +228,15 @@ export class AgentV1Builder extends AbstractGraphBuilder<"1.0.0"> {
 }
 ```
 
-## Language
-
-All user-facing strings, UI text, and code in this project use **English** as the default and only language. Do not add strings in other languages.
-
 ## Development
 
 This project uses **Yarn** as its package manager. Do not use `npm` or `npx` — they will create a `package-lock.json` which is not committed.
 
 ```bash
 yarn dev          # start with watch
-yarn test         # run tests
-yarn test:cov     # run tests with coverage
+yarn test         # run backend unit tests
+yarn test:cov     # run backend tests with coverage
+yarn test:all     # run backend + client + e2e tests
 yarn lint         # lint
 yarn format       # format code
 yarn build        # production build
