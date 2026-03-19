@@ -1,6 +1,6 @@
 import { Logger } from "@nestjs/common";
 import { RunnableConfig } from "@langchain/core/runnables";
-import { ToolMessage } from "@langchain/core/messages";
+import { AIMessage, ToolMessage } from "@langchain/core/messages";
 import {
   McpRuntimeHttpClient,
   IGraphAttachment,
@@ -12,53 +12,39 @@ const logger = new Logger("ExecToolsNode");
 
 /**
  * Executes tool calls from the LLM generation via McpRuntimeHttpClient.
- * Uses executeToolWithAttachments for large result handling.
  */
 export async function execToolsNode(
   state: typeof SalesState.State,
   config: RunnableConfig,
 ): Promise<Partial<typeof SalesState.State>> {
   try {
-    const generation = state.generation;
-    if (!generation) {
-      return { messages: [] };
-    }
+    const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
+    const toolCalls = lastMessage?.tool_calls ?? [];
 
-    const toolCalls = generation.tool_calls ?? [];
     if (toolCalls.length === 0) {
-      logger.warn("No tool calls found in generation");
+      logger.warn("No tool calls found in the last message");
       return {};
     }
 
     logger.log(`Executing ${toolCalls.length} tool calls`);
 
     const mcpClient: McpRuntimeHttpClient | undefined =
-      (config?.configurable as any)?.__mcpClient;
-    const toolConfigs = (config?.configurable as any)?.__toolConfigs ?? {};
+      (config?.configurable as any)?.mcpClient;
+    const toolConfigs = (config?.configurable as any)?.toolConfigs ?? {};
 
     // Build execution context with full context extraction
     const context = (config?.configurable as any)?.context;
     const executionContext: Record<string, any> = {};
 
-    if (context?.userId) {
-      executionContext.userId = context.userId;
-    }
-    if (context?.agentId) {
-      executionContext.agentId = context.agentId;
-    }
+    if (context?.userId) executionContext.userId = context.userId;
+    if (context?.agentId) executionContext.agentId = context.agentId;
     if (context?.threadId || (config?.configurable as any)?.thread_id) {
       executionContext.threadId =
         context?.threadId || (config?.configurable as any)?.thread_id;
     }
-    if (context?.messageId) {
-      executionContext.messageId = context.messageId;
-    }
-    if (context?.platform) {
-      executionContext.platform = context.platform;
-    }
-    if (context?.companyId) {
-      executionContext.companyId = context.companyId;
-    }
+    if (context?.messageId) executionContext.messageId = context.messageId;
+    if (context?.platform) executionContext.platform = context.platform;
+    if (context?.companyId) executionContext.companyId = context.companyId;
 
     const toolMessages: ToolMessage[] = [];
     const newAttachments: Record<string, IGraphAttachment> = {};
@@ -81,12 +67,7 @@ export async function execToolsNode(
       try {
         const toolConfig = toolConfigs[toolCall.name] ?? {};
         const enrichedArgs = { ...toolConfig, ...(toolCall.args ?? {}) };
-
-        // Merge tool-specific config into execution context
-        const toolExecutionContext = {
-          ...toolConfig,
-          ...executionContext,
-        };
+        const toolExecutionContext = { ...toolConfig, ...executionContext };
 
         logger.debug(
           `Executing tool: ${toolCall.name} with enriched args: ${JSON.stringify(enrichedArgs)}`,
@@ -112,14 +93,14 @@ export async function execToolsNode(
         }
 
         logger.log(`Tool ${toolCall.name} executed successfully`);
-      } catch (error) {
-        logger.error(`Error executing tool ${toolCall.name}:`, error);
+      } catch (toolError) {
+        logger.error(`Error executing tool ${toolCall.name}:`, toolError);
         toolMessages.push(
           new ToolMessage({
             content: JSON.stringify({
               error:
-                error instanceof Error
-                  ? error.message
+                toolError instanceof Error
+                  ? toolError.message
                   : "Tool execution failed",
               tool: toolCall.name,
             }),

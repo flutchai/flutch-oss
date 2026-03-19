@@ -1,63 +1,127 @@
 import { Logger } from "@nestjs/common";
 import { RunnableConfig } from "@langchain/core/runnables";
-import { HumanMessage } from "@langchain/core/messages";
+import { McpRuntimeHttpClient } from "@flutchai/flutch-sdk";
 import { SalesState } from "../sales.annotations";
-import { ILeadProfile, ITopicEntry, ISalesGraphSettings } from "../sales.types";
+import { ICrmConfig, IContactData } from "../sales.types";
+import { filterSystemFields, getCrmToolName } from "../crm.constants";
 
 const logger = new Logger("LoadContextNode");
 
 /**
- * Loads lead context from CRM or initializes from first message metadata.
+ * Loads lead context from CRM before generation.
  *
- * Phase 1: Extracts data from first message metadata (calculatorData, name, email).
- * Phase 4 (future): Will use CRM tools to fetch/create contacts.
+ * 1. Extract contact identifier from message metadata or context
+ * 2. Call CRM find/upsert tool via mcpClient
+ * 3. Filter system fields via blacklist
+ * 4. Return contactData for use in generate node
  */
 export async function loadContextNode(
   state: typeof SalesState.State,
   config: RunnableConfig,
 ): Promise<Partial<typeof SalesState.State>> {
-  const configurable = config?.configurable as any;
-  const graphSettings: ISalesGraphSettings = configurable?.graphSettings ?? {};
-  const topics = graphSettings.topics ?? [];
+  const crmConfig: ICrmConfig | undefined =
+    (config?.configurable as any)?.crmConfig;
+  const mcpClient: McpRuntimeHttpClient | undefined =
+    (config?.configurable as any)?.mcpClient;
 
-  // Initialize empty topicsMap from config
-  const topicsMap: Record<string, ITopicEntry> = {};
-  for (const topic of topics) {
-    topicsMap[topic.name] = { status: "not_explored" };
+  if (!crmConfig || !mcpClient) {
+    logger.debug("load_context: no CRM config or mcpClient, skipping");
+    return {};
   }
 
-  // Extract metadata from first message
-  const firstMessage = state.messages[0];
-  let leadProfile: ILeadProfile = {};
-  let calculatorData: Record<string, any> | undefined;
+  const context = (config?.configurable as any)?.context;
 
-  if (firstMessage instanceof HumanMessage) {
-    const metadata = (firstMessage as any).additional_kwargs?.metadata ?? {};
+  // Extract contact lookup value from first message metadata or context
+  const lookupValue = extractLookupValue(state, crmConfig.lookupBy, context);
 
-    leadProfile = {
-      name: metadata.name,
-      email: metadata.email,
-      company: metadata.company,
-    };
+  if (!lookupValue) {
+    logger.debug(
+      `load_context: no ${crmConfig.lookupBy} found, skipping CRM lookup`,
+    );
+    return {};
+  }
 
-    if (metadata.calculatorData) {
-      calculatorData = metadata.calculatorData;
-    }
+  try {
+    const toolName = getCrmToolName(crmConfig.provider, "find");
 
     logger.debug(
-      `Loaded lead profile: name=${leadProfile.name ?? "unknown"}, ` +
-      `calculator=${calculatorData ? "yes" : "no"}`,
+      `Looking up contact by ${crmConfig.lookupBy}=${lookupValue} via ${toolName}`,
     );
+
+    const result = await mcpClient.executeTool(toolName, {
+      [crmConfig.lookupBy]: lookupValue,
+    });
+
+    if (!result.success || !result.result) {
+      logger.debug("Contact not found in CRM, using metadata only");
+      return {
+        contactData: extractContactFromMetadata(state),
+      };
+    }
+
+    // Filter system fields and store CRM data
+    const crmData = result.result;
+    const crmId = crmData.id;
+    const filtered = filterSystemFields(crmConfig.provider, crmData);
+
+    const contactData: IContactData = {
+      crmId,
+      ...filtered,
+    };
+
+    logger.log(`Loaded contact ${crmId} from ${crmConfig.provider}`);
+
+    return { contactData };
+  } catch (error) {
+    logger.warn(
+      `CRM lookup failed: ${error instanceof Error ? error.message : error}`,
+    );
+    return {
+      contactData: extractContactFromMetadata(state),
+    };
+  }
+}
+
+/**
+ * Extract the lookup value (email/phone) from message metadata or context.
+ */
+function extractLookupValue(
+  state: typeof SalesState.State,
+  lookupBy: string,
+  context?: any,
+): string | undefined {
+  // Try context first (may have userId/email from widget)
+  if (context?.[lookupBy]) {
+    return context[lookupBy];
   }
 
-  // TODO Phase 4: CRM lookup
-  // const crmContact = await crmTool.getContact({ userId, agentId });
-  // if (crmContact) { merge leadProfile, topicsMap, calculatorData from CRM }
-  // else { create contact in CRM }
+  // Try first message metadata
+  const firstMsg = state.messages[0];
+  const metadata =
+    (firstMsg as any)?.additional_kwargs?.metadata ??
+    (firstMsg as any)?.kwargs?.additional_kwargs?.metadata;
 
-  return {
-    leadProfile,
-    topicsMap,
-    calculatorData,
-  };
+  if (metadata?.[lookupBy]) {
+    return metadata[lookupBy];
+  }
+
+  return undefined;
 }
+
+/**
+ * Extract contact data from the first message metadata (pre-chat form).
+ */
+function extractContactFromMetadata(
+  state: typeof SalesState.State,
+): IContactData {
+  const firstMsg = state.messages[0];
+  const metadata =
+    (firstMsg as any)?.additional_kwargs?.metadata ??
+    (firstMsg as any)?.kwargs?.additional_kwargs?.metadata;
+
+  if (!metadata) return {};
+
+  const { calculatorData, ...contactFields } = metadata;
+  return contactFields;
+}
+

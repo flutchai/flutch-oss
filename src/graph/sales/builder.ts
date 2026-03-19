@@ -12,11 +12,9 @@ import { CHECKPOINTER } from "../../modules/checkpointer/checkpointer.service";
 import { LangfuseService } from "../../modules/langfuse/langfuse.service";
 import {
   loadContextNode,
-  buildPromptNode,
   generateNode,
   shouldUseTools,
   execToolsNode,
-  extractNode,
   saveContextNode,
 } from "./nodes";
 
@@ -24,7 +22,7 @@ import {
  * Sales agent graph — consultative sales with structured qualification.
  * graphType: flutch.agent::sales
  *
- * Flow: load_context → build_prompt → generate ⇄ exec_tools → extract → save_context
+ * Flow: load_context → generate ⇄ exec_tools → save_context
  */
 @Injectable()
 export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
@@ -44,21 +42,47 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
     return "flutch.agent::sales";
   }
 
+  private extractToolSettings(graphSettings: ISalesGraphSettings): {
+    toolNames: string[];
+    toolConfigMap: Record<string, any>;
+  } {
+    const rawTools = graphSettings.availableTools ?? [];
+
+    const toolNames: string[] = [];
+    const toolConfigMap: Record<string, any> = {};
+
+    for (const tool of rawTools) {
+      if (typeof tool === "string") {
+        toolNames.push(tool);
+        continue;
+      }
+
+      if (!tool?.name) continue;
+      if (tool.enabled === false) continue;
+
+      toolNames.push(tool.name);
+
+      if (tool.config && typeof tool.config === "object") {
+        toolConfigMap[tool.name] = tool.config;
+      }
+    }
+
+    return { toolNames, toolConfigMap };
+  }
+
   async buildGraph(payload?: IGraphRequestPayload): Promise<any> {
     const graphSettings: ISalesGraphSettings =
-      payload?.config?.configurable?.graphSettings ?? {};
+      (payload?.config?.configurable?.graphSettings as ISalesGraphSettings) ??
+      {};
 
-    const llmSettings = graphSettings.llm ?? { modelId: "gpt-4o-mini" };
+    const modelId = graphSettings.modelId ?? "gpt-4o-mini";
 
-    this.logger.debug(
-      `Building sales graph model=${llmSettings.modelId}`,
-    );
+    this.logger.debug(`Building sales graph model=${modelId}`);
 
-    // Create main LLM model
     const baseModel = createModel({
-      model: llmSettings.modelId,
-      temperature: llmSettings.temperature ?? 0.7,
-      maxTokens: llmSettings.maxTokens ?? 2048,
+      model: modelId,
+      temperature: graphSettings.temperature ?? 0.7,
+      maxTokens: graphSettings.maxTokens ?? 2048,
     });
 
     // Langfuse tracing
@@ -74,16 +98,17 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
       ? baseModel.withConfig({ callbacks: [langfuseCallback] })
       : baseModel;
 
-    // Bind tools to model if configured
-    const toolsDef = (graphSettings.tools ?? []).filter((t) => t.enabled);
+    // Bind tools if configured
+    const { toolNames, toolConfigMap } =
+      this.extractToolSettings(graphSettings);
     let boundModel = model;
 
-    if (toolsDef.length > 0) {
+    if (toolNames.length > 0) {
       try {
         const mcpTools = await this.mcpClient.getTools();
-        const enabledToolNames = new Set(toolsDef.map((t) => t.name));
+        const enabledSet = new Set(toolNames);
         const filteredTools = mcpTools.filter((t: any) =>
-          enabledToolNames.has(t.name),
+          enabledSet.has(t.name),
         );
 
         if (filteredTools.length > 0) {
@@ -95,73 +120,54 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
       }
     }
 
-    // Build tool configs map for exec_tools node
-    const toolConfigs: Record<string, Record<string, any>> = {};
-    for (const t of toolsDef) {
-      if (t.config) {
-        toolConfigs[t.name] = t.config;
-      }
-    }
-
     // Build the graph
     const workflow = new StateGraph(SalesState)
       .addNode("load_context", loadContextNode)
-      .addNode("build_prompt", buildPromptNode)
       .addNode("generate", generateNode)
       .addNode("exec_tools", execToolsNode)
-      .addNode("extract", extractNode)
       .addNode("save_context", saveContextNode);
 
-    // Linear path
     workflow.addEdge(START, "load_context");
-    workflow.addEdge("load_context", "build_prompt");
-    workflow.addEdge("build_prompt", "generate");
+    workflow.addEdge("load_context", "generate");
 
-    // Tool loop: generate ⇄ exec_tools
     workflow.addConditionalEdges("generate", shouldUseTools, {
       exec_tools: "exec_tools",
-      extract: "extract",
+      save_context: "save_context",
     });
     workflow.addEdge("exec_tools", "generate");
 
-    // Completion
-    workflow.addEdge("extract", "save_context");
     workflow.addEdge("save_context", END);
 
-    // Compile with checkpointer
+    // Compile
     const compiled = workflow.compile({
       checkpointer: this.checkpointer ?? undefined,
     });
 
-    // Inject runtime dependencies into the compiled graph's config
+    // Inject runtime dependencies into compiled graph config
     const mcpClient = this.mcpClient;
+    const systemPrompt = graphSettings.systemPrompt;
+
+    const crmConfig = graphSettings.crm;
+
+    const injectDeps = (config?: any) => ({
+      ...config,
+      configurable: {
+        ...config?.configurable,
+        salesModel: boundModel,
+        mcpClient,
+        toolConfigs: toolConfigMap,
+        systemPrompt,
+        crmConfig,
+      },
+    });
+
     const originalInvoke = compiled.invoke.bind(compiled);
-    compiled.invoke = async (input: any, config?: any) => {
-      const enhancedConfig = {
-        ...config,
-        configurable: {
-          ...config?.configurable,
-          __salesModel: boundModel,
-          __mcpClient: mcpClient,
-          __toolConfigs: toolConfigs,
-        },
-      };
-      return originalInvoke(input, enhancedConfig);
-    };
+    compiled.invoke = async (input: any, config?: any) =>
+      originalInvoke(input, injectDeps(config));
 
     const originalStream = compiled.stream.bind(compiled);
-    compiled.stream = async (input: any, config?: any) => {
-      const enhancedConfig = {
-        ...config,
-        configurable: {
-          ...config?.configurable,
-          __salesModel: boundModel,
-          __mcpClient: mcpClient,
-          __toolConfigs: toolConfigs,
-        },
-      };
-      return originalStream(input, enhancedConfig);
-    };
+    compiled.stream = async (input: any, config?: any) =>
+      originalStream(input, injectDeps(config));
 
     return compiled;
   }
