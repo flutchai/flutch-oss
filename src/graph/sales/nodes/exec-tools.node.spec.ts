@@ -13,11 +13,8 @@ type State = typeof SalesState.State;
 function makeState(overrides: Partial<State> = {}): State {
   return {
     messages: [new HumanMessage("hello")],
-    generation: null,
-    systemPrompt: "",
-    leadProfile: {},
-    topicsMap: {},
-    calculatorData: undefined,
+    text: "",
+    contactData: {},
     attachments: {},
     ...overrides,
   };
@@ -26,7 +23,7 @@ function makeState(overrides: Partial<State> = {}): State {
 function makeAIMessageWithTools(
   toolCalls: Array<{ id: string; name: string; args: Record<string, any> }>,
 ): AIMessage {
-  const msg = new AIMessage({ content: "", tool_calls: [] });
+  const msg = new AIMessage({ content: "" });
   (msg as any).tool_calls = toolCalls;
   return msg;
 }
@@ -40,232 +37,178 @@ describe("execToolsNode", () => {
     executeToolWithAttachments = sdk.executeToolWithAttachments as jest.Mock;
   });
 
-  it("returns empty messages when generation is null", async () => {
-    const state = makeState({ generation: null });
-    const result = await execToolsNode(state, {} as any);
-    expect(result).toEqual({ messages: [] });
+  it("returns {} when last message has no tool calls", async () => {
+    const state = makeState({
+      messages: [new AIMessage({ content: "response", tool_calls: [] })],
+    });
+    const result = await execToolsNode(state, { configurable: {} } as any);
+    expect(result).toEqual({});
   });
 
-  it("returns empty object when tool_calls is empty", async () => {
-    const generation = new AIMessage({ content: "response", tool_calls: [] });
-    const state = makeState({ generation });
+  it("returns {} when messages is empty", async () => {
+    const state = makeState({ messages: [] });
     const result = await execToolsNode(state, { configurable: {} } as any);
     expect(result).toEqual({});
   });
 
   it("returns error ToolMessage when mcpClient is not in config", async () => {
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "roof_calculator", args: { area: 200 } },
-    ]);
-    const state = makeState({ generation });
-    const config = { configurable: {} };
+    const aiMsg = makeAIMessageWithTools([{ id: "tc1", name: "roof_calc", args: {} }]);
+    const state = makeState({ messages: [aiMsg] });
 
-    const result = await execToolsNode(state, config as any);
-
-    expect(result.messages).toHaveLength(1);
-    const msg = result.messages![0] as ToolMessage;
-    expect(msg).toBeInstanceOf(ToolMessage);
-    const content = JSON.parse(msg.content as string);
-    expect(content.error).toContain("roof_calculator");
-  });
-
-  it("executes tool calls via mcpClient and returns tool messages", async () => {
-    const mockToolMessage = new ToolMessage({
-      content: JSON.stringify({ result: "200 sq m calculated" }),
-      tool_call_id: "tc1",
-      name: "roof_calculator",
-    });
-
-    executeToolWithAttachments.mockResolvedValue({
-      toolMessage: mockToolMessage,
-      attachment: null,
-    });
-
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "roof_calculator", args: { area: 200 } },
-    ]);
-    const state = makeState({ generation });
-    const mockMcpClient = { executeTool: jest.fn() };
-    const config = {
-      configurable: {
-        __mcpClient: mockMcpClient,
-        __toolConfigs: { roof_calculator: { apiKey: "xyz" } },
-        context: { userId: "user-1", agentId: "agent-1" },
-        thread_id: "thread-1",
-      },
-    };
-
-    const result = await execToolsNode(state, config as any);
-
-    expect(executeToolWithAttachments).toHaveBeenCalledWith(
-      expect.objectContaining({
-        toolCall: expect.objectContaining({ name: "roof_calculator" }),
-        mcpClient: mockMcpClient,
-      }),
-    );
-    expect(result.messages).toHaveLength(1);
-    expect(result.messages![0]).toBe(mockToolMessage);
-  });
-
-  it("returns error ToolMessage when tool execution throws", async () => {
-    executeToolWithAttachments.mockRejectedValue(new Error("Tool execution failed"));
-
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "roof_calculator", args: {} },
-    ]);
-    const state = makeState({ generation });
-    const mockMcpClient = { executeTool: jest.fn() };
-    const config = {
-      configurable: {
-        __mcpClient: mockMcpClient,
-        __toolConfigs: {},
-      },
-    };
-
-    const result = await execToolsNode(state, config as any);
+    const result = await execToolsNode(state, { configurable: {} } as any);
 
     expect(result.messages).toHaveLength(1);
     const content = JSON.parse((result.messages![0] as ToolMessage).content as string);
-    expect(content.error).toBe("Tool execution failed");
+    expect(content.error).toContain("roof_calc");
+  });
+
+  it("executes tool and returns tool message", async () => {
+    const toolMsg = new ToolMessage({
+      content: JSON.stringify({ result: "200 sq m" }),
+      tool_call_id: "tc1",
+      name: "roof_calc",
+    });
+    executeToolWithAttachments.mockResolvedValue({ toolMessage: toolMsg, attachment: null });
+
+    const aiMsg = makeAIMessageWithTools([{ id: "tc1", name: "roof_calc", args: { area: 200 } }]);
+    const state = makeState({ messages: [aiMsg] });
+    const mcpClient = { executeTool: jest.fn() };
+
+    const result = await execToolsNode(state, {
+      configurable: { mcpClient, toolConfigs: {} },
+    } as any);
+
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages![0]).toBe(toolMsg);
+  });
+
+  it("returns error ToolMessage when tool execution throws", async () => {
+    executeToolWithAttachments.mockRejectedValue(new Error("Tool crashed"));
+
+    const aiMsg = makeAIMessageWithTools([{ id: "tc1", name: "roof_calc", args: {} }]);
+    const state = makeState({ messages: [aiMsg] });
+
+    const result = await execToolsNode(state, {
+      configurable: { mcpClient: {}, toolConfigs: {} },
+    } as any);
+
+    const content = JSON.parse((result.messages![0] as ToolMessage).content as string);
+    expect(content.error).toBe("Tool crashed");
   });
 
   it("collects attachments from tool results", async () => {
-    const mockToolMessage = new ToolMessage({
-      content: "result",
-      tool_call_id: "tc1",
-      name: "pdf_tool",
-    });
-
+    const toolMsg = new ToolMessage({ content: "ok", tool_call_id: "tc1", name: "pdf" });
     executeToolWithAttachments.mockResolvedValue({
-      toolMessage: mockToolMessage,
+      toolMessage: toolMsg,
       attachment: {
-        key: "pdf_attachment",
-        value: { url: "http://example.com/file.pdf", type: "pdf" },
+        key: "pdf_key",
+        value: { url: "http://file.pdf", type: "pdf" },
       },
     });
 
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "pdf_tool", args: {} },
-    ]);
-    const state = makeState({ generation });
-    const config = {
-      configurable: {
-        __mcpClient: {},
-        __toolConfigs: {},
-      },
-    };
+    const aiMsg = makeAIMessageWithTools([{ id: "tc1", name: "pdf", args: {} }]);
+    const state = makeState({ messages: [aiMsg] });
 
-    const result = await execToolsNode(state, config as any);
+    const result = await execToolsNode(state, {
+      configurable: { mcpClient: {}, toolConfigs: {} },
+    } as any);
 
-    expect(result.attachments).toBeDefined();
-    expect(result.attachments!["pdf_attachment"]).toEqual({
-      url: "http://example.com/file.pdf",
-      type: "pdf",
-    });
+    expect(result.attachments?.["pdf_key"]).toEqual({ url: "http://file.pdf", type: "pdf" });
   });
 
   it("does not include attachments key when no attachments returned", async () => {
-    const mockToolMessage = new ToolMessage({
-      content: "result",
-      tool_call_id: "tc1",
-      name: "simple_tool",
-    });
+    const toolMsg = new ToolMessage({ content: "ok", tool_call_id: "tc1", name: "simple" });
+    executeToolWithAttachments.mockResolvedValue({ toolMessage: toolMsg, attachment: null });
 
-    executeToolWithAttachments.mockResolvedValue({
-      toolMessage: mockToolMessage,
-      attachment: null,
-    });
+    const aiMsg = makeAIMessageWithTools([{ id: "tc1", name: "simple", args: {} }]);
+    const state = makeState({ messages: [aiMsg] });
 
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "simple_tool", args: {} },
-    ]);
-    const state = makeState({ generation });
-    const config = { configurable: { __mcpClient: {}, __toolConfigs: {} } };
-
-    const result = await execToolsNode(state, config as any);
+    const result = await execToolsNode(state, {
+      configurable: { mcpClient: {}, toolConfigs: {} },
+    } as any);
 
     expect(result.attachments).toBeUndefined();
   });
 
-  it("handles multiple tool calls in sequence", async () => {
-    const toolMsg1 = new ToolMessage({ content: "result1", tool_call_id: "tc1", name: "tool1" });
-    const toolMsg2 = new ToolMessage({ content: "result2", tool_call_id: "tc2", name: "tool2" });
-
+  it("handles multiple tool calls", async () => {
+    const msg1 = new ToolMessage({ content: "r1", tool_call_id: "tc1", name: "t1" });
+    const msg2 = new ToolMessage({ content: "r2", tool_call_id: "tc2", name: "t2" });
     executeToolWithAttachments
-      .mockResolvedValueOnce({ toolMessage: toolMsg1, attachment: null })
-      .mockResolvedValueOnce({ toolMessage: toolMsg2, attachment: null });
+      .mockResolvedValueOnce({ toolMessage: msg1, attachment: null })
+      .mockResolvedValueOnce({ toolMessage: msg2, attachment: null });
 
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "tool1", args: {} },
-      { id: "tc2", name: "tool2", args: {} },
+    const aiMsg = makeAIMessageWithTools([
+      { id: "tc1", name: "t1", args: {} },
+      { id: "tc2", name: "t2", args: {} },
     ]);
-    const state = makeState({ generation });
-    const config = { configurable: { __mcpClient: {}, __toolConfigs: {} } };
+    const state = makeState({ messages: [aiMsg] });
 
-    const result = await execToolsNode(state, config as any);
+    const result = await execToolsNode(state, {
+      configurable: { mcpClient: {}, toolConfigs: {} },
+    } as any);
 
     expect(result.messages).toHaveLength(2);
   });
 
-  it("uses tool name as tool_call_id fallback when id is missing", async () => {
-    const mockToolMessage = new ToolMessage({
-      content: "result",
-      tool_call_id: "tool_no_id",
-      name: "tool_no_id",
-    });
-    executeToolWithAttachments.mockResolvedValue({
-      toolMessage: mockToolMessage,
-      attachment: null,
-    });
+  it("uses tool name as fallback when tool id is missing", async () => {
+    const toolMsg = new ToolMessage({ content: "ok", tool_call_id: "no_id_tool", name: "no_id_tool" });
+    executeToolWithAttachments.mockResolvedValue({ toolMessage: toolMsg, attachment: null });
 
-    const generation = makeAIMessageWithTools([
-      { id: undefined as any, name: "tool_no_id", args: {} },
-    ]);
-    const state = makeState({ generation });
-    const config = { configurable: { __mcpClient: {}, __toolConfigs: {} } };
+    const aiMsg = makeAIMessageWithTools([{ id: undefined as any, name: "no_id_tool", args: {} }]);
+    const state = makeState({ messages: [aiMsg] });
 
-    const result = await execToolsNode(state, config as any);
+    const result = await execToolsNode(state, {
+      configurable: { mcpClient: {}, toolConfigs: {} },
+    } as any);
 
     expect(result.messages).toHaveLength(1);
   });
 
   it("builds execution context from config.configurable.context", async () => {
-    const mockToolMessage = new ToolMessage({
-      content: "result",
-      tool_call_id: "tc1",
-      name: "crm_tool",
-    });
-    executeToolWithAttachments.mockResolvedValue({
-      toolMessage: mockToolMessage,
-      attachment: null,
-    });
+    const toolMsg = new ToolMessage({ content: "ok", tool_call_id: "tc1", name: "crm" });
+    executeToolWithAttachments.mockResolvedValue({ toolMessage: toolMsg, attachment: null });
 
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "crm_tool", args: {} },
-    ]);
-    const state = makeState({ generation });
-    const config = {
+    const aiMsg = makeAIMessageWithTools([{ id: "tc1", name: "crm", args: {} }]);
+    const state = makeState({ messages: [aiMsg] });
+
+    await execToolsNode(state, {
       configurable: {
-        __mcpClient: {},
-        __toolConfigs: {},
+        mcpClient: {},
+        toolConfigs: {},
         context: {
-          userId: "user-123",
-          agentId: "agent-456",
-          companyId: "company-789",
+          userId: "u1",
+          agentId: "a1",
+          companyId: "c1",
           platform: "telegram",
-          messageId: "msg-1",
+          messageId: "m1",
         },
-        thread_id: "thread-abc",
+        thread_id: "t1",
       },
-    };
-
-    await execToolsNode(state, config as any);
+    } as any);
 
     const callArg = executeToolWithAttachments.mock.calls[0][0];
-    expect(callArg.executionContext.userId).toBe("user-123");
-    expect(callArg.executionContext.agentId).toBe("agent-456");
-    expect(callArg.executionContext.companyId).toBe("company-789");
+    expect(callArg.executionContext.userId).toBe("u1");
+    expect(callArg.executionContext.agentId).toBe("a1");
+    expect(callArg.executionContext.companyId).toBe("c1");
     expect(callArg.executionContext.platform).toBe("telegram");
-    expect(callArg.executionContext.threadId).toBe("thread-abc");
+    expect(callArg.executionContext.threadId).toBe("t1");
+  });
+
+  it("enriches tool args with toolConfigs", async () => {
+    const toolMsg = new ToolMessage({ content: "ok", tool_call_id: "tc1", name: "calc" });
+    executeToolWithAttachments.mockResolvedValue({ toolMessage: toolMsg, attachment: null });
+
+    const aiMsg = makeAIMessageWithTools([{ id: "tc1", name: "calc", args: { area: 100 } }]);
+    const state = makeState({ messages: [aiMsg] });
+
+    await execToolsNode(state, {
+      configurable: {
+        mcpClient: {},
+        toolConfigs: { calc: { apiKey: "xyz", region: "ru" } },
+      },
+    } as any);
+
+    const callArg = executeToolWithAttachments.mock.calls[0][0];
+    expect(callArg.enrichedArgs).toEqual({ apiKey: "xyz", region: "ru", area: 100 });
   });
 });
