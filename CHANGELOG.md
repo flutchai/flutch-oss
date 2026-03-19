@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0-alpha.1] - 2026-03-19
+
+### Added
+- **Sales graph** (`flutch.agent::sales`) — new LangGraph-based agent type for consultative sales scenarios
+- **CRM integration** — `load_context` node fetches contact from CRM (Twenty/Zoho) before generation; `save_context` node upserts contact data after generation
+- **Dynamic contact context** — contact fields are injected into the system prompt automatically at runtime
+- **Tool binding** — `availableTools` in graph settings supports both string names and `{name, enabled, config}` objects
+- **CRM field filtering** — `filterSystemFields` removes internal CRM metadata (ids, timestamps, `__typename`) per-provider blacklist
+- **CI: skip draft PRs** — all CI jobs (`unit-tests`, `client-tests`, `e2e-tests`) are skipped on draft pull requests; CI triggers on `ready_for_review` event
+
+### Changed
+- Sales graph state simplified: `messages`, `text`, `contactData`, `attachments` (removed `generation`, `systemPrompt`, `leadProfile`, `topicsMap`, `calculatorData`)
+- `graphSettings` schema for sales: `modelId`, `temperature`, `maxTokens`, `systemPrompt`, `availableTools`, `crm` (removed `prompt`, `topics`, `extraction` objects)
+- Runtime dependencies (`salesModel`, `mcpClient`, `toolConfigs`, `systemPrompt`, `crmConfig`) injected via `invoke`/`stream` wrappers instead of state
+
+### Note
+> **Alpha release** — CRM lookup and save are functional but the full qualification topics workflow (extraction, prompt builder, topics map) is deferred to `0.7.0`. The graph is fully usable without CRM (`crmConfig` is optional).
+
 ## [0.6.1] - 2026-03-18
 
 ### Added

@@ -1,13 +1,54 @@
 {
-  "graphName": "flutch.agent",
-  "graphVersion": "1.0.0",
-  "description": "Flutch OSS generic agent engine",
+  "companySlug": "flutch",
+  "name": "agent",
+  "title": "Flutch Agent",
+  "description": "Multi-variant agent engine with simple chat and consultative sales graphs",
+  "detailedDescription": "Flutch OSS agent engine supporting multiple graph variants. Simple variant provides basic Q&A with tool support. Sales variant adds lead context loading and post-conversation data persistence for consultative sales workflows.",
+
   "category": "agent",
+  "author": "Flutch Team",
+  "maintainer": "Flutch Team",
+  "repository": "flutchai/flutch-oss",
+  "tags": ["agent", "chat", "sales", "tools", "conversation"],
   "visibility": "public",
+
   "ui": {
-    "enabled": false
+    "enabled": false,
+    "title": "Agent Configuration",
+    "description": "Configure agent graph variant and settings",
+    "defaultScreen": "settings",
+    "menu": ["settings"],
+    "screens": {},
+    "theme": {
+      "primaryColor": "#059669",
+      "accentColor": "#0ea5e9"
+    },
+    "permissions": {
+      "read": ["USER", "ADMIN"],
+      "write": ["ADMIN"]
+    }
   },
+
   "versioning": {
-    "strategy": "latest"
+    "strategy": "explicit",
+    "defaultVersion": "simple",
+    "supportedVersions": ["simple", "sales"]
+  },
+
+  "versions": {
+    "simple": {
+      "status": "stable",
+      "releaseDate": "2026-03-18T00:00:00.000Z",
+      "isActive": true,
+      "visibility": "public",
+      "configSchemaPath": "./config-schema-simple.json"
+    },
+    "sales": {
+      "status": "stable",
+      "releaseDate": "2026-03-18T00:00:00.000Z",
+      "isActive": true,
+      "visibility": "public",
+      "configSchemaPath": "./config-schema-sales.json"
+    }
   }
 }
