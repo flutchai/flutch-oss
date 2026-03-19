@@ -44,12 +44,6 @@
       "title": "CRM Integration",
       "description": "Configure contact synchronization with CRM",
       "properties": {
-        "provider": {
-          "type": "string",
-          "title": "CRM Provider",
-          "enum": ["twenty", "zoho"],
-          "default": "twenty"
-        },
         "lookupBy": {
           "type": "string",
           "title": "Contact Lookup Field",
@@ -66,7 +60,7 @@
           }
         }
       },
-      "required": ["provider", "lookupBy"]
+      "required": ["lookupBy"]
     }
   },
   "required": ["systemPrompt", "modelId"]

@@ -25,11 +25,17 @@ export interface ISalesToolConfig {
   config?: Record<string, any>;
 }
 
+/** CRM config from graphSettings (UI). Provider comes from env. */
 export interface ICrmConfig {
-  /** CRM provider — determines system field blacklist */
-  provider: "twenty" | "zoho";
   /** Field used to look up existing contact */
   lookupBy: "email" | "phone";
   /** Fields to write back to CRM on save. If empty, writes all non-blacklisted. */
   writeFields?: string[];
+}
+
+export type CrmProvider = "twenty" | "zoho";
+
+/** Runtime CRM config passed to nodes (ICrmConfig + provider from env) */
+export interface ICrmRuntimeConfig extends ICrmConfig {
+  provider: CrmProvider;
 }

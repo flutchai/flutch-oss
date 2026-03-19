@@ -2,7 +2,7 @@ import { Logger } from "@nestjs/common";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { McpRuntimeHttpClient } from "@flutchai/flutch-sdk";
 import { SalesState } from "../sales.annotations";
-import { ICrmConfig } from "../sales.types";
+import { ICrmRuntimeConfig } from "../sales.types";
 import { filterSystemFields, getCrmToolName } from "../crm.constants";
 
 const logger = new Logger("SaveContextNode");
@@ -18,7 +18,7 @@ export async function saveContextNode(
   state: typeof SalesState.State,
   config: RunnableConfig,
 ): Promise<Partial<typeof SalesState.State>> {
-  const crmConfig: ICrmConfig | undefined =
+  const crmConfig: ICrmRuntimeConfig | undefined =
     (config?.configurable as any)?.crmConfig;
   const mcpClient: McpRuntimeHttpClient | undefined =
     (config?.configurable as any)?.mcpClient;

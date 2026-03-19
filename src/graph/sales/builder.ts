@@ -6,7 +6,7 @@ import {
 } from "@flutchai/flutch-sdk";
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { SalesState } from "./sales.annotations";
-import { ISalesGraphSettings } from "./sales.types";
+import { ISalesGraphSettings, CrmProvider } from "./sales.types";
 import { createModel } from "../model.factory";
 import { CHECKPOINTER } from "../../modules/checkpointer/checkpointer.service";
 import { LangfuseService } from "../../modules/langfuse/langfuse.service";
@@ -147,7 +147,10 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
     const mcpClient = this.mcpClient;
     const systemPrompt = graphSettings.systemPrompt;
 
-    const crmConfig = graphSettings.crm;
+    const crmProvider = (process.env.CRM_PROVIDER || "twenty") as CrmProvider;
+    const crmConfig = graphSettings.crm
+      ? { ...graphSettings.crm, provider: crmProvider }
+      : undefined;
 
     const injectDeps = (config?: any) => ({
       ...config,
