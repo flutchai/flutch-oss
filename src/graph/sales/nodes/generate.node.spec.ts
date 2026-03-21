@@ -22,39 +22,82 @@ const mockModel = {
   invoke: jest.fn().mockResolvedValue(mockAiResponse),
 };
 
+const mockModelInitializer = {
+  initializeChatModel: jest.fn().mockResolvedValue(mockModel),
+};
+
+function makeConfig(overrides: Record<string, any> = {}) {
+  return {
+    configurable: {
+      modelInitializer: mockModelInitializer,
+      graphSettings: { modelId: "gpt-4o-mini" },
+      ...overrides,
+    },
+  } as any;
+}
+
 describe("generateNode", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockModel.invoke.mockResolvedValue(mockAiResponse);
+    mockModelInitializer.initializeChatModel.mockResolvedValue(mockModel);
   });
 
   it("returns text and appends to messages", async () => {
     const state = makeState();
-    const config = { configurable: { salesModel: mockModel } };
-
-    const result = await generateNode(state, config as any);
+    const result = await generateNode(state, makeConfig());
 
     expect(result.messages).toEqual([mockAiResponse]);
     expect(result.text).toBe("Here is my response");
   });
 
-  it("throws when salesModel is not in config", async () => {
+  it("throws when modelInitializer is not in config", async () => {
     const state = makeState();
     const config = { configurable: {} };
 
     await expect(generateNode(state, config as any)).rejects.toThrow(
-      "GenerateNode: salesModel not found in config.configurable",
+      "GenerateNode: modelInitializer not found in config.configurable",
+    );
+  });
+
+  it("calls initializeChatModel with correct params from graphSettings", async () => {
+    const state = makeState();
+    const config = makeConfig({
+      graphSettings: {
+        modelId: "claude-3-haiku",
+        temperature: 0.5,
+        maxTokens: 1024,
+        availableTools: [{ name: "kb_search", enabled: true }],
+      },
+    });
+
+    await generateNode(state, config);
+
+    expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith({
+      modelId: "claude-3-haiku",
+      temperature: 0.5,
+      maxTokens: 1024,
+      toolsConfig: [{ toolName: "kb_search", enabled: true, config: undefined }],
+    });
+  });
+
+  it("defaults modelId to gpt-4o-mini when not in graphSettings", async () => {
+    const state = makeState();
+    const config = makeConfig({ graphSettings: {} });
+
+    await generateNode(state, config);
+
+    expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith(
+      expect.objectContaining({ modelId: "gpt-4o-mini" }),
     );
   });
 
   it("prepends SystemMessage when systemPrompt is set", async () => {
     const { SystemMessage } = await import("@langchain/core/messages");
     const state = makeState();
-    const config = {
-      configurable: { salesModel: mockModel, systemPrompt: "Be helpful." },
-    };
+    const config = makeConfig({ systemPrompt: "Be helpful." });
 
-    await generateNode(state, config as any);
+    await generateNode(state, config);
 
     const calls = mockModel.invoke.mock.calls[0];
     const messages = calls[0];
@@ -64,9 +107,9 @@ describe("generateNode", () => {
 
   it("does not prepend SystemMessage when systemPrompt is empty", async () => {
     const state = makeState();
-    const config = { configurable: { salesModel: mockModel, systemPrompt: "" } };
+    const config = makeConfig({ systemPrompt: "" });
 
-    await generateNode(state, config as any);
+    await generateNode(state, config);
 
     const calls = mockModel.invoke.mock.calls[0];
     const messages = calls[0];
@@ -77,11 +120,9 @@ describe("generateNode", () => {
     const state = makeState({
       contactData: { crmId: "crm-1", name: "Ivan", email: "ivan@test.com" },
     });
-    const config = {
-      configurable: { salesModel: mockModel, systemPrompt: "You are a sales agent." },
-    };
+    const config = makeConfig({ systemPrompt: "You are a sales agent." });
 
-    await generateNode(state, config as any);
+    await generateNode(state, config);
 
     const calls = mockModel.invoke.mock.calls[0];
     const systemMsg = calls[0][0];
@@ -99,13 +140,57 @@ describe("generateNode", () => {
       new HumanMessage("msg3"),
     ];
     const state = makeState({ messages: msgs });
-    const config = { configurable: { salesModel: mockModel } };
 
-    await generateNode(state, config as any);
+    await generateNode(state, makeConfig());
 
     const calls = mockModel.invoke.mock.calls[0];
     const passedMessages = calls[0];
     expect(passedMessages).toHaveLength(3);
+  });
+
+  it("applies langfuseCallback via withConfig when present", async () => {
+    const mockCallbackModel = {
+      invoke: jest.fn().mockResolvedValue(mockAiResponse),
+    };
+    const mockModelWithConfig = {
+      ...mockModel,
+      withConfig: jest.fn().mockReturnValue(mockCallbackModel),
+    };
+    mockModelInitializer.initializeChatModel.mockResolvedValue(
+      mockModelWithConfig,
+    );
+
+    const langfuseCallback = { name: "langfuse" };
+    const state = makeState();
+    const config = makeConfig({ langfuseCallback });
+
+    await generateNode(state, config);
+
+    expect(mockModelWithConfig.withConfig).toHaveBeenCalledWith({
+      callbacks: [langfuseCallback],
+    });
+    expect(mockCallbackModel.invoke).toHaveBeenCalled();
+  });
+
+  it("handles string tools in availableTools", async () => {
+    const state = makeState();
+    const config = makeConfig({
+      graphSettings: {
+        modelId: "gpt-4o-mini",
+        availableTools: ["kb_search", "web_search"],
+      },
+    });
+
+    await generateNode(state, config);
+
+    expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolsConfig: [
+          { toolName: "kb_search", enabled: true },
+          { toolName: "web_search", enabled: true },
+        ],
+      }),
+    );
   });
 });
 

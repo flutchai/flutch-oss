@@ -1,53 +1,47 @@
 /**
- * System fields to filter out when loading contact data from CRM.
- * These are internal CRM fields not useful for the sales agent.
+ * Universal system fields to filter out from any CRM response.
+ * Combined blacklist — safe to apply regardless of provider.
  */
-export const CRM_SYSTEM_FIELDS: Record<string, Set<string>> = {
-  twenty: new Set([
-    "id",
-    "createdAt",
-    "updatedAt",
-    "deletedAt",
-    "position",
-    "createdBy",
-    "updatedBy",
-    "__typename",
-    "searchVector",
-    "avatarUrl",
-  ]),
-  zoho: new Set([
-    "id",
-    "Created_Time",
-    "Modified_Time",
-    "Created_By",
-    "Modified_By",
-    "Owner",
-    "$approved",
-    "$approval",
-    "$editable",
-    "$review",
-    "$currency_symbol",
-    "$converted",
-    "$process_flow",
-    "$orchestration",
-    "$in_merge",
-    "$approval_state",
-  ]),
-};
+export const SYSTEM_FIELDS = new Set([
+  // Common
+  "id",
+  "createdAt",
+  "updatedAt",
+  "deletedAt",
+  // Twenty-specific
+  "position",
+  "createdBy",
+  "updatedBy",
+  "__typename",
+  "searchVector",
+  "avatarUrl",
+  // Zoho-specific
+  "Created_Time",
+  "Modified_Time",
+  "Created_By",
+  "Modified_By",
+  "Owner",
+  "$approved",
+  "$approval",
+  "$editable",
+  "$review",
+  "$currency_symbol",
+  "$converted",
+  "$process_flow",
+  "$orchestration",
+  "$in_merge",
+  "$approval_state",
+]);
 
 /**
- * Filter out system fields from CRM contact data.
+ * Filter out system fields and null/undefined values from CRM data.
  */
 export function filterSystemFields(
-  provider: string,
   data: Record<string, any>,
 ): Record<string, any> {
-  const blacklist = CRM_SYSTEM_FIELDS[provider];
-  if (!blacklist) return data;
-
   const filtered: Record<string, any> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (!blacklist.has(key) && value != null) {
+    if (!SYSTEM_FIELDS.has(key) && value != null) {
       filtered[key] = value;
     }
   }
@@ -56,11 +50,11 @@ export function filterSystemFields(
 
 /**
  * CRM MCP tool name mapping per provider.
- * These names must match the tools exposed by the CRM MCP servers.
  */
 const CRM_TOOL_MAP: Record<string, Record<string, string>> = {
   twenty: {
-    find: "twenty_find_person",
+    find: "twenty_list_people",
+    get: "twenty_get_person",
     create: "twenty_create_person",
     update: "twenty_update_person",
     upsert: "twenty_upsert_person",
@@ -78,7 +72,76 @@ const CRM_TOOL_MAP: Record<string, Record<string, string>> = {
  */
 export function getCrmToolName(
   provider: string,
-  action: "find" | "create" | "update" | "upsert",
+  action: "find" | "get" | "create" | "update" | "upsert",
 ): string {
   return CRM_TOOL_MAP[provider]?.[action] ?? `${provider}_${action}_contact`;
+}
+
+/**
+ * Build _credentials object from CRM config for MCP Runtime dynamic server spawning.
+ * Returns undefined if no credentials are configured (MCP Runtime will use static server).
+ */
+export function buildCrmCredentials(
+  crmConfig: { apiKey?: string; baseUrl?: string },
+): Record<string, string> | undefined {
+  const creds: Record<string, string> = {};
+  if (crmConfig.apiKey) creds.apiKey = crmConfig.apiKey;
+  if (crmConfig.baseUrl) creds.baseUrl = crmConfig.baseUrl;
+  return Object.keys(creds).length > 0 ? creds : undefined;
+}
+
+/**
+ * Parse MCP tool result which may be a text string containing JSON.
+ * MCP servers return text like "Found 8 people\n\n[{...}]" or "✅ Created person: ...\n\n{...}"
+ */
+export function parseMcpResult(result: any): any {
+  if (result == null) return null;
+
+  // Already an object — return as-is
+  if (typeof result === "object") return result;
+
+  // Try to extract JSON from text
+  if (typeof result === "string") {
+    const jsonMatch = result.match(/(\[[\s\S]*\]|\{[\s\S]*\})\s*$/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[1]);
+      } catch {
+        // Not valid JSON, return as-is
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Build lookup arguments for CRM find tool.
+ * Twenty uses JSON filter format, others use simple key=value.
+ */
+export function buildLookupArgs(
+  provider: string,
+  lookupBy: string,
+  value: string,
+): Record<string, any> {
+  if (provider === "twenty") {
+    // Twenty needs nested filter: {"emails": {"primaryEmail": {"eq": "value"}}}
+    const FIELD_TO_FILTER: Record<string, string> = {
+      email: "emails.primaryEmail",
+      phone: "phones.primaryPhoneNumber",
+    };
+
+    const filterPath = FIELD_TO_FILTER[lookupBy] || lookupBy;
+    const parts = filterPath.split(".");
+
+    let filter: any = { eq: value };
+    for (let i = parts.length - 1; i >= 0; i--) {
+      filter = { [parts[i]]: filter };
+    }
+
+    return { filter: JSON.stringify(filter), limit: 1 };
+  }
+
+  // Default: simple key=value
+  return { [lookupBy]: value };
 }

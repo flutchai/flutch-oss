@@ -13,7 +13,10 @@ export default defineConfig({
   base: "/admin/",
   server: {
     proxy: {
-      "/api": "http://localhost:3000",
+      "/api": {
+        target: process.env.API_URL || "http://localhost:3101",
+        changeOrigin: true,
+      },
     },
   },
   build: {

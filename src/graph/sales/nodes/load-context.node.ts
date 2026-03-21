@@ -1,9 +1,13 @@
 import { Logger } from "@nestjs/common";
-import { RunnableConfig } from "@langchain/core/runnables";
-import { McpRuntimeHttpClient } from "@flutchai/flutch-sdk";
 import { SalesState } from "../sales.annotations";
-import { ICrmRuntimeConfig, IContactData } from "../sales.types";
-import { filterSystemFields, getCrmToolName } from "../crm.constants";
+import { IContactData, SalesRunnableConfig } from "../sales.types";
+import {
+  filterSystemFields,
+  getCrmToolName,
+  buildCrmCredentials,
+  parseMcpResult,
+  buildLookupArgs,
+} from "../crm.constants";
 
 const logger = new Logger("LoadContextNode");
 
@@ -11,25 +15,23 @@ const logger = new Logger("LoadContextNode");
  * Loads lead context from CRM before generation.
  *
  * 1. Extract contact identifier from message metadata or context
- * 2. Call CRM find/upsert tool via mcpClient
- * 3. Filter system fields via blacklist
+ * 2. Call CRM find tool via mcpClient
+ * 3. Filter system fields, keep raw CRM structure
  * 4. Return contactData for use in generate node
  */
 export async function loadContextNode(
   state: typeof SalesState.State,
-  config: RunnableConfig,
+  config: SalesRunnableConfig,
 ): Promise<Partial<typeof SalesState.State>> {
-  const crmConfig: ICrmRuntimeConfig | undefined =
-    (config?.configurable as any)?.crmConfig;
-  const mcpClient: McpRuntimeHttpClient | undefined =
-    (config?.configurable as any)?.mcpClient;
+  const crmConfig = config?.configurable?.crmConfig;
+  const mcpClient = config?.configurable?.mcpClient;
 
   if (!crmConfig || !mcpClient) {
     logger.debug("load_context: no CRM config or mcpClient, skipping");
     return {};
   }
 
-  const context = (config?.configurable as any)?.context;
+  const context = config?.configurable?.context;
 
   // Extract contact lookup value from first message metadata or context
   const lookupValue = extractLookupValue(state, crmConfig.lookupBy, context);
@@ -43,13 +45,16 @@ export async function loadContextNode(
 
   try {
     const toolName = getCrmToolName(crmConfig.provider, "find");
+    const _credentials = buildCrmCredentials(crmConfig);
+    const lookupParams = buildLookupArgs(crmConfig.provider, crmConfig.lookupBy, lookupValue);
 
     logger.debug(
       `Looking up contact by ${crmConfig.lookupBy}=${lookupValue} via ${toolName}`,
     );
 
     const result = await mcpClient.executeTool(toolName, {
-      [crmConfig.lookupBy]: lookupValue,
+      ...lookupParams,
+      ...(_credentials && { _credentials }),
     });
 
     if (!result.success || !result.result) {
@@ -59,10 +64,21 @@ export async function loadContextNode(
       };
     }
 
-    // Filter system fields and store CRM data
-    const crmData = result.result;
-    const crmId = crmData.id;
-    const filtered = filterSystemFields(crmConfig.provider, crmData);
+    // Parse the result (MCP may return text with embedded JSON)
+    const parsed = parseMcpResult(result.result);
+
+    // Extract the first matching contact
+    const raw = Array.isArray(parsed) ? parsed[0] : parsed;
+    if (!raw || !raw.id) {
+      logger.debug("No matching contact in CRM, using metadata only");
+      return {
+        contactData: extractContactFromMetadata(state),
+      };
+    }
+
+    // Filter system fields, keep raw CRM structure as-is
+    const crmId = raw.id;
+    const filtered = filterSystemFields(raw);
 
     const contactData: IContactData = {
       crmId,
@@ -88,7 +104,7 @@ export async function loadContextNode(
 function extractLookupValue(
   state: typeof SalesState.State,
   lookupBy: string,
-  context?: any,
+  context?: Record<string, any>,
 ): string | undefined {
   // Try context first (may have userId/email from widget)
   if (context?.[lookupBy]) {
@@ -124,4 +140,3 @@ function extractContactFromMetadata(
   const { calculatorData, ...contactFields } = metadata;
   return contactFields;
 }
-

@@ -1,12 +1,11 @@
 import { Logger } from "@nestjs/common";
-import { RunnableConfig } from "@langchain/core/runnables";
 import { AIMessage, ToolMessage } from "@langchain/core/messages";
 import {
-  McpRuntimeHttpClient,
   IGraphAttachment,
   executeToolWithAttachments,
 } from "@flutchai/flutch-sdk";
 import { SalesState } from "../sales.annotations";
+import { SalesRunnableConfig } from "../sales.types";
 
 const logger = new Logger("ExecToolsNode");
 
@@ -15,7 +14,7 @@ const logger = new Logger("ExecToolsNode");
  */
 export async function execToolsNode(
   state: typeof SalesState.State,
-  config: RunnableConfig,
+  config: SalesRunnableConfig,
 ): Promise<Partial<typeof SalesState.State>> {
   try {
     const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
@@ -28,19 +27,18 @@ export async function execToolsNode(
 
     logger.log(`Executing ${toolCalls.length} tool calls`);
 
-    const mcpClient: McpRuntimeHttpClient | undefined =
-      (config?.configurable as any)?.mcpClient;
-    const toolConfigs = (config?.configurable as any)?.toolConfigs ?? {};
+    const mcpClient = config?.configurable?.mcpClient;
+    const toolConfigs = config?.configurable?.toolConfigs ?? {};
 
     // Build execution context with full context extraction
-    const context = (config?.configurable as any)?.context;
+    const context = config?.configurable?.context;
     const executionContext: Record<string, any> = {};
 
     if (context?.userId) executionContext.userId = context.userId;
     if (context?.agentId) executionContext.agentId = context.agentId;
-    if (context?.threadId || (config?.configurable as any)?.thread_id) {
+    if (context?.threadId || config?.configurable?.thread_id) {
       executionContext.threadId =
-        context?.threadId || (config?.configurable as any)?.thread_id;
+        context?.threadId || config?.configurable?.thread_id;
     }
     if (context?.messageId) executionContext.messageId = context.messageId;
     if (context?.platform) executionContext.platform = context.platform;

@@ -1,0 +1,83 @@
+{
+  "type": "object",
+  "properties": {
+    "crm": {
+      "type": "object",
+      "title": "CRM Integration",
+      "description": "Configure contact synchronization with CRM",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "title": "CRM Provider",
+          "description": "Which CRM system to use for contact management",
+          "enum": ["twenty", "zoho"]
+        },
+        "lookupBy": {
+          "type": "string",
+          "title": "Contact Lookup Field",
+          "description": "Which field to use for finding existing contacts",
+          "default": "email",
+          "enum": ["email", "phone"]
+        },
+        "apiKey": {
+          "type": "string",
+          "title": "CRM API Key",
+          "format": "password",
+          "description": "API key for CRM authentication"
+        },
+        "baseUrl": {
+          "type": "string",
+          "title": "CRM Base URL",
+          "format": "uri",
+          "description": "Base URL of the CRM instance (e.g. https://crm.example.com)"
+        }
+      }
+    },
+    "systemPrompt": {
+      "type": "string",
+      "title": "System Prompt",
+      "format": "textarea",
+      "default": "You are a consultative sales assistant. Help the customer understand their problem and guide them toward a solution through natural conversation."
+    },
+    "modelId": {
+      "type": "modelSelector",
+      "title": "Model",
+      "params": {
+        "modelType": "chat",
+        "isActive": true
+      }
+    },
+    "temperature": {
+      "type": "number",
+      "title": "Temperature",
+      "default": 0.7,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "maxTokens": {
+      "type": "integer",
+      "title": "Max Tokens",
+      "default": 2048,
+      "minimum": 100,
+      "maximum": 4000,
+      "description": "Maximum tokens in response"
+    },
+    "recursionLimit": {
+      "type": "integer",
+      "title": "Recursion Limit",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Maximum number of graph iterations (tool call loops)"
+    },
+    "availableTools": {
+      "type": "toolSelector",
+      "title": "Available Tools",
+      "description": "Select which tools the agent can use during conversations",
+      "params": {
+        "isMulti": true,
+        "showDescriptions": true
+      }
+    }
+  }
+}

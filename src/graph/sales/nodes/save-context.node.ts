@@ -1,9 +1,7 @@
 import { Logger } from "@nestjs/common";
-import { RunnableConfig } from "@langchain/core/runnables";
-import { McpRuntimeHttpClient } from "@flutchai/flutch-sdk";
 import { SalesState } from "../sales.annotations";
-import { ICrmRuntimeConfig } from "../sales.types";
-import { filterSystemFields, getCrmToolName } from "../crm.constants";
+import { SalesRunnableConfig } from "../sales.types";
+import { filterSystemFields, getCrmToolName, buildCrmCredentials, parseMcpResult } from "../crm.constants";
 
 const logger = new Logger("SaveContextNode");
 
@@ -11,17 +9,15 @@ const logger = new Logger("SaveContextNode");
  * Saves updated lead data to CRM after generation.
  *
  * 1. Check if contactData has crmId (existing contact)
- * 2. Filter to writeFields (if configured) or all non-system fields
+ * 2. Filter system fields
  * 3. Call CRM update/create tool via mcpClient
  */
 export async function saveContextNode(
   state: typeof SalesState.State,
-  config: RunnableConfig,
+  config: SalesRunnableConfig,
 ): Promise<Partial<typeof SalesState.State>> {
-  const crmConfig: ICrmRuntimeConfig | undefined =
-    (config?.configurable as any)?.crmConfig;
-  const mcpClient: McpRuntimeHttpClient | undefined =
-    (config?.configurable as any)?.mcpClient;
+  const crmConfig = config?.configurable?.crmConfig;
+  const mcpClient = config?.configurable?.mcpClient;
 
   if (!crmConfig || !mcpClient) {
     logger.debug("save_context: no CRM config or mcpClient, skipping");
@@ -38,23 +34,14 @@ export async function saveContextNode(
     // Separate crmId from the rest
     const { crmId, ...fields } = contactData;
 
-    // Filter to writeFields if configured, otherwise all non-system fields
-    let dataToWrite: Record<string, any>;
-    if (crmConfig.writeFields && crmConfig.writeFields.length > 0) {
-      dataToWrite = {};
-      for (const field of crmConfig.writeFields) {
-        if (fields[field] !== undefined) {
-          dataToWrite[field] = fields[field];
-        }
-      }
-    } else {
-      dataToWrite = filterSystemFields(crmConfig.provider, fields);
-    }
+    const dataToWrite = filterSystemFields(fields);
 
     if (Object.keys(dataToWrite).length === 0) {
       logger.debug("save_context: no fields to write");
       return {};
     }
+
+    const _credentials = buildCrmCredentials(crmConfig);
 
     if (crmId) {
       // Update existing contact
@@ -64,6 +51,7 @@ export async function saveContextNode(
       await mcpClient.executeTool(toolName, {
         id: crmId,
         ...dataToWrite,
+        ...(_credentials && { _credentials }),
       });
 
       logger.log(`Updated contact ${crmId} in ${crmConfig.provider}`);
@@ -72,15 +60,22 @@ export async function saveContextNode(
       const toolName = getCrmToolName(crmConfig.provider, "create");
       logger.debug(`Creating new contact via ${toolName}`);
 
-      const result = await mcpClient.executeTool(toolName, dataToWrite);
+      const result = await mcpClient.executeTool(toolName, {
+        ...dataToWrite,
+        ...(_credentials && { _credentials }),
+      });
 
-      if (result.success && result.result?.id) {
-        logger.log(
-          `Created contact ${result.result.id} in ${crmConfig.provider}`,
-        );
-        return {
-          contactData: { ...contactData, crmId: result.result.id },
-        };
+      if (result.success && result.result) {
+        const parsed = parseMcpResult(result.result);
+        const newId = parsed?.id;
+        if (newId) {
+          logger.log(
+            `Created contact ${newId} in ${crmConfig.provider}`,
+          );
+          return {
+            contactData: { ...contactData, crmId: newId },
+          };
+        }
       }
     }
   } catch (error) {
@@ -91,4 +86,3 @@ export async function saveContextNode(
 
   return {};
 }
-

@@ -3,11 +3,12 @@ import {
   AbstractGraphBuilder,
   IGraphRequestPayload,
   McpRuntimeHttpClient,
+  ModelInitializer,
 } from "@flutchai/flutch-sdk";
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { SalesState } from "./sales.annotations";
-import { ISalesGraphSettings, CrmProvider } from "./sales.types";
-import { createModel } from "../model.factory";
+import { ISalesGraphSettings } from "./sales.types";
+import { createOssConfigFetcher } from "../model-config-fetcher";
 import { CHECKPOINTER } from "../../modules/checkpointer/checkpointer.service";
 import { LangfuseService } from "../../modules/langfuse/langfuse.service";
 import {
@@ -20,15 +21,16 @@ import {
 
 /**
  * Sales agent graph — consultative sales with structured qualification.
- * graphType: flutch.agent::sales
+ * graphType: flutch.sales::1.0.0
  *
  * Flow: load_context → generate ⇄ exec_tools → save_context
  */
 @Injectable()
-export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
-  readonly version = "sales" as const;
+export class SalesGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
+  readonly version = "1.0.0" as const;
   protected readonly logger = new Logger(SalesGraphBuilder.name);
   private readonly mcpClient: McpRuntimeHttpClient;
+  private readonly modelInitializer: ModelInitializer;
 
   constructor(
     @Optional() @Inject(CHECKPOINTER) private readonly checkpointer: any,
@@ -36,10 +38,11 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
   ) {
     super();
     this.mcpClient = new McpRuntimeHttpClient();
+    this.modelInitializer = new ModelInitializer(createOssConfigFetcher());
   }
 
   get graphType(): string {
-    return "flutch.agent::sales";
+    return "flutch.sales::1.0.0";
   }
 
   private extractToolSettings(graphSettings: ISalesGraphSettings): {
@@ -75,17 +78,14 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
       (payload?.config?.configurable?.graphSettings as ISalesGraphSettings) ??
       {};
 
-    const modelId = graphSettings.modelId ?? "gpt-4o-mini";
+    this.logger.debug(
+      `Building sales graph model=${graphSettings.modelId ?? "gpt-4o-mini"}`,
+    );
 
-    this.logger.debug(`Building sales graph model=${modelId}`);
+    // Extract tool configs for exec-tools node (enriched args)
+    const { toolConfigMap } = this.extractToolSettings(graphSettings);
 
-    const baseModel = createModel({
-      model: modelId,
-      temperature: graphSettings.temperature ?? 0.7,
-      maxTokens: graphSettings.maxTokens ?? 2048,
-    });
-
-    // Langfuse tracing
+    // Create Langfuse callback (applied lazily in generate node)
     const ctx = payload?.config?.configurable;
     const langfuseCallback =
       this.langfuseService?.createCallbackHandler({
@@ -93,32 +93,6 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
         agentId: ctx?.context?.agentId ?? "unknown",
         threadId: ctx?.thread_id ?? "no-thread",
       }) ?? null;
-
-    const model = langfuseCallback
-      ? baseModel.withConfig({ callbacks: [langfuseCallback] })
-      : baseModel;
-
-    // Bind tools if configured
-    const { toolNames, toolConfigMap } =
-      this.extractToolSettings(graphSettings);
-    let boundModel = model;
-
-    if (toolNames.length > 0) {
-      try {
-        const mcpTools = await this.mcpClient.getTools();
-        const enabledSet = new Set(toolNames);
-        const filteredTools = mcpTools.filter((t: any) =>
-          enabledSet.has(t.name),
-        );
-
-        if (filteredTools.length > 0) {
-          boundModel = (model as any).bindTools(filteredTools);
-          this.logger.debug(`Bound ${filteredTools.length} tools to model`);
-        }
-      } catch (error) {
-        this.logger.warn(`Failed to bind tools: ${error.message}`);
-      }
-    }
 
     // Build the graph
     const workflow = new StateGraph(SalesState)
@@ -144,22 +118,24 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"sales"> {
     });
 
     // Inject runtime dependencies into compiled graph config
+    const modelInitializer = this.modelInitializer;
     const mcpClient = this.mcpClient;
     const systemPrompt = graphSettings.systemPrompt;
 
-    const crmProvider = (process.env.CRM_PROVIDER || "twenty") as CrmProvider;
-    const crmConfig = graphSettings.crm
-      ? { ...graphSettings.crm, provider: crmProvider }
+    const crmConfig = graphSettings.crm?.provider
+      ? graphSettings.crm
       : undefined;
 
     const injectDeps = (config?: any) => ({
       ...config,
       configurable: {
         ...config?.configurable,
-        salesModel: boundModel,
+        modelInitializer,
         mcpClient,
         toolConfigs: toolConfigMap,
         systemPrompt,
+        langfuseCallback,
+        graphSettings,
         crmConfig,
       },
     });

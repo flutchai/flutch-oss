@@ -1,4 +1,11 @@
-import { filterSystemFields, getCrmToolName, CRM_SYSTEM_FIELDS } from "./crm.constants";
+import {
+  filterSystemFields,
+  getCrmToolName,
+  SYSTEM_FIELDS,
+  buildCrmCredentials,
+  parseMcpResult,
+  buildLookupArgs,
+} from "./crm.constants";
 
 describe("crm.constants", () => {
   describe("filterSystemFields", () => {
@@ -14,14 +21,18 @@ describe("crm.constants", () => {
         __typename: "Person",
         searchVector: "...",
         avatarUrl: "http://...",
-        name: "Иван",
-        email: "ivan@test.com",
-        phone: "+7999",
+        name: { firstName: "Ivan", lastName: "Petrov" },
+        emails: { primaryEmail: "ivan@test.com" },
+        jobTitle: "Engineer",
       };
 
-      const result = filterSystemFields("twenty", data);
+      const result = filterSystemFields(data);
 
-      expect(result).toEqual({ name: "Иван", email: "ivan@test.com", phone: "+7999" });
+      expect(result).toEqual({
+        name: { firstName: "Ivan", lastName: "Petrov" },
+        emails: { primaryEmail: "ivan@test.com" },
+        jobTitle: "Engineer",
+      });
     });
 
     it("filters zoho system fields", () => {
@@ -46,46 +57,38 @@ describe("crm.constants", () => {
         Email: "petrov@test.com",
       };
 
-      const result = filterSystemFields("zoho", data);
+      const result = filterSystemFields(data);
 
       expect(result).toEqual({ Last_Name: "Петров", Email: "petrov@test.com" });
     });
 
-    it("returns data as-is for unknown provider", () => {
-      const data = { foo: "bar", baz: 42 };
-      const result = filterSystemFields("unknown_crm", data);
-      expect(result).toEqual({ foo: "bar", baz: 42 });
-    });
-
-    it("filters out null values regardless of blacklist", () => {
+    it("filters out null values", () => {
       const data = {
-        name: "Иван",
+        name: "Ivan",
         email: null,
         phone: undefined,
       };
 
-      const result = filterSystemFields("twenty", data);
+      const result = filterSystemFields(data);
 
-      expect(result).toEqual({ name: "Иван" });
+      expect(result).toEqual({ name: "Ivan" });
       expect(result).not.toHaveProperty("email");
       expect(result).not.toHaveProperty("phone");
     });
 
     it("returns empty object when all fields are system fields", () => {
       const data = { id: "1", createdAt: "2024", __typename: "Person" };
-      const result = filterSystemFields("twenty", data);
+      const result = filterSystemFields(data);
       expect(result).toEqual({});
     });
 
     it("returns empty object when input is empty", () => {
-      expect(filterSystemFields("twenty", {})).toEqual({});
-      expect(filterSystemFields("zoho", {})).toEqual({});
+      expect(filterSystemFields({})).toEqual({});
     });
 
-    it("keeps non-null, non-blacklisted values including falsy ones like 0 and false", () => {
+    it("keeps falsy values like 0 and false", () => {
       const data = { score: 0, active: false, name: "Test" };
-      // score=0 and active=false → filtered by `value != null` check → they pass (0 != null is true)
-      const result = filterSystemFields("twenty", data);
+      const result = filterSystemFields(data);
       expect(result.score).toBe(0);
       expect(result.active).toBe(false);
       expect(result.name).toBe("Test");
@@ -94,7 +97,8 @@ describe("crm.constants", () => {
 
   describe("getCrmToolName", () => {
     it("returns correct tool names for twenty", () => {
-      expect(getCrmToolName("twenty", "find")).toBe("twenty_find_person");
+      expect(getCrmToolName("twenty", "find")).toBe("twenty_list_people");
+      expect(getCrmToolName("twenty", "get")).toBe("twenty_get_person");
       expect(getCrmToolName("twenty", "create")).toBe("twenty_create_person");
       expect(getCrmToolName("twenty", "update")).toBe("twenty_update_person");
       expect(getCrmToolName("twenty", "upsert")).toBe("twenty_upsert_person");
@@ -114,22 +118,99 @@ describe("crm.constants", () => {
     });
   });
 
-  describe("CRM_SYSTEM_FIELDS", () => {
-    it("has entries for twenty and zoho", () => {
-      expect(CRM_SYSTEM_FIELDS.twenty).toBeInstanceOf(Set);
-      expect(CRM_SYSTEM_FIELDS.zoho).toBeInstanceOf(Set);
+  describe("SYSTEM_FIELDS", () => {
+    it("is a single universal Set", () => {
+      expect(SYSTEM_FIELDS).toBeInstanceOf(Set);
     });
 
-    it("twenty blacklist includes id, createdAt, __typename", () => {
-      expect(CRM_SYSTEM_FIELDS.twenty.has("id")).toBe(true);
-      expect(CRM_SYSTEM_FIELDS.twenty.has("createdAt")).toBe(true);
-      expect(CRM_SYSTEM_FIELDS.twenty.has("__typename")).toBe(true);
+    it("includes twenty system fields", () => {
+      expect(SYSTEM_FIELDS.has("id")).toBe(true);
+      expect(SYSTEM_FIELDS.has("createdAt")).toBe(true);
+      expect(SYSTEM_FIELDS.has("__typename")).toBe(true);
+      expect(SYSTEM_FIELDS.has("searchVector")).toBe(true);
     });
 
-    it("zoho blacklist includes id, Created_Time, Owner", () => {
-      expect(CRM_SYSTEM_FIELDS.zoho.has("id")).toBe(true);
-      expect(CRM_SYSTEM_FIELDS.zoho.has("Created_Time")).toBe(true);
-      expect(CRM_SYSTEM_FIELDS.zoho.has("Owner")).toBe(true);
+    it("includes zoho system fields", () => {
+      expect(SYSTEM_FIELDS.has("Created_Time")).toBe(true);
+      expect(SYSTEM_FIELDS.has("Owner")).toBe(true);
+      expect(SYSTEM_FIELDS.has("$approved")).toBe(true);
+    });
+  });
+
+  describe("buildCrmCredentials", () => {
+    it("returns credentials when apiKey and baseUrl are set", () => {
+      expect(buildCrmCredentials({ apiKey: "key1", baseUrl: "http://crm" }))
+        .toEqual({ apiKey: "key1", baseUrl: "http://crm" });
+    });
+
+    it("returns credentials with only apiKey", () => {
+      expect(buildCrmCredentials({ apiKey: "key1" }))
+        .toEqual({ apiKey: "key1" });
+    });
+
+    it("returns undefined when no credentials", () => {
+      expect(buildCrmCredentials({})).toBeUndefined();
+    });
+
+    it("returns undefined when values are empty strings", () => {
+      expect(buildCrmCredentials({ apiKey: "", baseUrl: "" })).toBeUndefined();
+    });
+  });
+
+  describe("parseMcpResult", () => {
+    it("returns null for null/undefined", () => {
+      expect(parseMcpResult(null)).toBeNull();
+      expect(parseMcpResult(undefined)).toBeNull();
+    });
+
+    it("returns object as-is", () => {
+      const obj = { id: "1", name: "Test" };
+      expect(parseMcpResult(obj)).toBe(obj);
+    });
+
+    it("parses JSON object from text", () => {
+      const text = '✅ Created person: Test\n\n{"id": "abc", "name": "Test"}';
+      expect(parseMcpResult(text)).toEqual({ id: "abc", name: "Test" });
+    });
+
+    it("parses JSON array from text", () => {
+      const text = 'Found 2 people\n\n[{"id": "1"}, {"id": "2"}]';
+      expect(parseMcpResult(text)).toEqual([{ id: "1" }, { id: "2" }]);
+    });
+
+    it("returns string as-is when no JSON found", () => {
+      expect(parseMcpResult("No results")).toBe("No results");
+    });
+  });
+
+  describe("buildLookupArgs", () => {
+    it("builds twenty filter for email lookup", () => {
+      const args = buildLookupArgs("twenty", "email", "test@example.com");
+      const parsed = JSON.parse(args.filter);
+      expect(parsed).toEqual({
+        emails: { primaryEmail: { eq: "test@example.com" } },
+      });
+      expect(args.limit).toBe(1);
+    });
+
+    it("builds twenty filter for phone lookup", () => {
+      const args = buildLookupArgs("twenty", "phone", "+7999");
+      const parsed = JSON.parse(args.filter);
+      expect(parsed).toEqual({
+        phones: { primaryPhoneNumber: { eq: "+7999" } },
+      });
+      expect(args.limit).toBe(1);
+    });
+
+    it("builds simple key=value for other providers", () => {
+      const args = buildLookupArgs("zoho", "email", "test@example.com");
+      expect(args).toEqual({ email: "test@example.com" });
+    });
+
+    it("passes unknown twenty field as-is", () => {
+      const args = buildLookupArgs("twenty", "customField", "value");
+      const parsed = JSON.parse(args.filter);
+      expect(parsed).toEqual({ customField: { eq: "value" } });
     });
   });
 });

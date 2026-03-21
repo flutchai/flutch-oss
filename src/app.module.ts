@@ -32,19 +32,24 @@ const logger = new Logger("AppModule");
       engineType: GraphEngineType.LANGGRAPH,
       versioning: [
         {
-          baseGraphType: "flutch.agent",
+          baseGraphType: "flutch.simple",
           versions: [
             {
-              version: "simple",
+              version: "1.0.0",
               builderClass: SimpleGraphBuilder,
               isDefault: true,
             },
+          ],
+        },
+        {
+          baseGraphType: "flutch.sales",
+          versions: [
             {
-              version: "sales",
+              version: "1.0.0",
               builderClass: SalesGraphBuilder,
+              isDefault: true,
             },
           ],
-          defaultVersionStrategy: "latest",
         },
       ],
     }),

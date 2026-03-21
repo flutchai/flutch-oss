@@ -45,7 +45,7 @@ const basePayload = {
     configurable: {
       thread_id: "550e8400-e29b-41d4-a716-446655440000",
       context: { userId: "user-1", agentId: "roofing-agent", companyId: "co-1" },
-      graphSettings: { model: "gpt-4o-mini", graphType: "flutch.agent::simple" },
+      graphSettings: { model: "gpt-4o-mini", graphType: "flutch.simple::1.0.0" },
     },
   },
 } as any;
@@ -61,12 +61,12 @@ describe("SimpleGraphBuilder", () => {
   describe("metadata", () => {
     it("has correct graphType", () => {
       const builder = new SimpleGraphBuilder(null, null);
-      expect(builder.graphType).toBe("flutch.agent::simple");
+      expect(builder.graphType).toBe("flutch.simple::1.0.0");
     });
 
     it("has correct version", () => {
       const builder = new SimpleGraphBuilder(null, null);
-      expect(builder.version).toBe("simple");
+      expect(builder.version).toBe("1.0.0");
     });
   });
 
@@ -91,7 +91,7 @@ describe("SimpleGraphBuilder", () => {
       await builder.buildGraph(basePayload);
       expect(modelFactory.createModel).toHaveBeenCalledWith({
         model: "gpt-4o-mini",
-        graphType: "flutch.agent::simple",
+        graphType: "flutch.simple::1.0.0",
       });
     });
 
