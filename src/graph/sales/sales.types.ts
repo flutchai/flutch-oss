@@ -72,10 +72,6 @@ export interface ICrmConfig {
   provider: CrmProvider;
   /** Field used to look up existing contact */
   lookupBy: "email" | "phone";
-  /** CRM API key. Passed as _credentials to MCP Runtime for dynamic server spawning. */
-  apiKey?: string;
-  /** CRM base URL. Passed as _credentials to MCP Runtime. */
-  baseUrl?: string;
 }
 
 /** Runtime CRM config passed to nodes. Same as ICrmConfig — kept for clarity. */

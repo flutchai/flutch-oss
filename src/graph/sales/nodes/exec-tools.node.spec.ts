@@ -21,7 +21,7 @@ function makeState(overrides: Partial<State> = {}): State {
 }
 
 function makeAIMessageWithTools(
-  toolCalls: Array<{ id: string; name: string; args: Record<string, any> }>,
+  toolCalls: Array<{ id: string; name: string; args: Record<string, any> }>
 ): AIMessage {
   const msg = new AIMessage({ content: "", tool_calls: [] });
   (msg as any).tool_calls = toolCalls;
@@ -92,20 +92,16 @@ describe("execToolsNode", () => {
       expect.objectContaining({
         toolCall: expect.objectContaining({ name: "kb_search" }),
         mcpClient: mockMcpClient,
-      }),
+      })
     );
     expect(result.messages).toHaveLength(1);
     expect(result.messages![0]).toBe(mockToolMessage);
   });
 
   it("returns error ToolMessage when tool execution throws", async () => {
-    executeToolWithAttachments.mockRejectedValue(
-      new Error("Tool execution failed"),
-    );
+    executeToolWithAttachments.mockRejectedValue(new Error("Tool execution failed"));
 
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "kb_search", args: {} },
-    ]);
+    const generation = makeAIMessageWithTools([{ id: "tc1", name: "kb_search", args: {} }]);
     const state = makeState({ messages: [new HumanMessage("hi"), generation] });
     const config = {
       configurable: { mcpClient: {}, toolConfigs: {} },
@@ -114,9 +110,7 @@ describe("execToolsNode", () => {
     const result = await execToolsNode(state, config as any);
 
     expect(result.messages).toHaveLength(1);
-    const content = JSON.parse(
-      (result.messages![0] as ToolMessage).content as string,
-    );
+    const content = JSON.parse((result.messages![0] as ToolMessage).content as string);
     expect(content.error).toBe("Tool execution failed");
   });
 
@@ -135,9 +129,7 @@ describe("execToolsNode", () => {
       },
     });
 
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "pdf_tool", args: {} },
-    ]);
+    const generation = makeAIMessageWithTools([{ id: "tc1", name: "pdf_tool", args: {} }]);
     const state = makeState({ messages: [new HumanMessage("hi"), generation] });
     const config = { configurable: { mcpClient: {}, toolConfigs: {} } };
 
@@ -161,9 +153,7 @@ describe("execToolsNode", () => {
       attachment: null,
     });
 
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "crm_tool", args: {} },
-    ]);
+    const generation = makeAIMessageWithTools([{ id: "tc1", name: "crm_tool", args: {} }]);
     const state = makeState({ messages: [new HumanMessage("hi"), generation] });
     const config = {
       configurable: {

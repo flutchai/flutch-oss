@@ -23,8 +23,7 @@ export function createOssConfigFetcher(): ModelConfigFetcher {
 
 function inferProvider(modelId: string): ModelProvider {
   if (modelId.startsWith("claude")) return ModelProvider.ANTHROPIC;
-  if (modelId.startsWith("mistral") || modelId.startsWith("mixtral"))
-    return ModelProvider.MISTRAL;
+  if (modelId.startsWith("mistral") || modelId.startsWith("mixtral")) return ModelProvider.MISTRAL;
   return ModelProvider.OPENAI;
 }
 

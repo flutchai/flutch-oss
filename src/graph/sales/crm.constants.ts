@@ -36,9 +36,7 @@ export const SYSTEM_FIELDS = new Set([
 /**
  * Filter out system fields and null/undefined values from CRM data.
  */
-export function filterSystemFields(
-  data: Record<string, any>,
-): Record<string, any> {
+export function filterSystemFields(data: Record<string, any>): Record<string, any> {
   const filtered: Record<string, any> = {};
   for (const [key, value] of Object.entries(data)) {
     if (!SYSTEM_FIELDS.has(key) && value != null) {
@@ -72,22 +70,9 @@ const CRM_TOOL_MAP: Record<string, Record<string, string>> = {
  */
 export function getCrmToolName(
   provider: string,
-  action: "find" | "get" | "create" | "update" | "upsert",
+  action: "find" | "get" | "create" | "update" | "upsert"
 ): string {
   return CRM_TOOL_MAP[provider]?.[action] ?? `${provider}_${action}_contact`;
-}
-
-/**
- * Build _credentials object from CRM config for MCP Runtime dynamic server spawning.
- * Returns undefined if no credentials are configured (MCP Runtime will use static server).
- */
-export function buildCrmCredentials(
-  crmConfig: { apiKey?: string; baseUrl?: string },
-): Record<string, string> | undefined {
-  const creds: Record<string, string> = {};
-  if (crmConfig.apiKey) creds.apiKey = crmConfig.apiKey;
-  if (crmConfig.baseUrl) creds.baseUrl = crmConfig.baseUrl;
-  return Object.keys(creds).length > 0 ? creds : undefined;
 }
 
 /**
@@ -122,7 +107,7 @@ export function parseMcpResult(result: any): any {
 export function buildLookupArgs(
   provider: string,
   lookupBy: string,
-  value: string,
+  value: string
 ): Record<string, any> {
   if (provider === "twenty") {
     // Twenty needs nested filter: {"emails": {"primaryEmail": {"eq": "value"}}}

@@ -4,7 +4,6 @@ import { IContactData, SalesRunnableConfig } from "../sales.types";
 import {
   filterSystemFields,
   getCrmToolName,
-  buildCrmCredentials,
   parseMcpResult,
   buildLookupArgs,
 } from "../crm.constants";
@@ -21,10 +20,11 @@ const logger = new Logger("LoadContextNode");
  */
 export async function loadContextNode(
   state: typeof SalesState.State,
-  config: SalesRunnableConfig,
+  config: SalesRunnableConfig
 ): Promise<Partial<typeof SalesState.State>> {
   const crmConfig = config?.configurable?.crmConfig;
   const mcpClient = config?.configurable?.mcpClient;
+  const toolConfigs = config?.configurable?.toolConfigs ?? {};
 
   if (!crmConfig || !mcpClient) {
     logger.debug("load_context: no CRM config or mcpClient, skipping");
@@ -37,24 +37,20 @@ export async function loadContextNode(
   const lookupValue = extractLookupValue(state, crmConfig.lookupBy, context);
 
   if (!lookupValue) {
-    logger.debug(
-      `load_context: no ${crmConfig.lookupBy} found, skipping CRM lookup`,
-    );
+    logger.debug(`load_context: no ${crmConfig.lookupBy} found, skipping CRM lookup`);
     return {};
   }
 
   try {
     const toolName = getCrmToolName(crmConfig.provider, "find");
-    const _credentials = buildCrmCredentials(crmConfig);
+    const toolConfig = toolConfigs[toolName] ?? {};
     const lookupParams = buildLookupArgs(crmConfig.provider, crmConfig.lookupBy, lookupValue);
 
-    logger.debug(
-      `Looking up contact by ${crmConfig.lookupBy}=${lookupValue} via ${toolName}`,
-    );
+    logger.debug(`Looking up contact by ${crmConfig.lookupBy}=${lookupValue} via ${toolName}`);
 
     const result = await mcpClient.executeTool(toolName, {
       ...lookupParams,
-      ...(_credentials && { _credentials }),
+      ...toolConfig,
     });
 
     if (!result.success || !result.result) {
@@ -89,9 +85,7 @@ export async function loadContextNode(
 
     return { contactData };
   } catch (error) {
-    logger.warn(
-      `CRM lookup failed: ${error instanceof Error ? error.message : error}`,
-    );
+    logger.warn(`CRM lookup failed: ${error instanceof Error ? error.message : error}`);
     return {
       contactData: extractContactFromMetadata(state),
     };
@@ -104,7 +98,7 @@ export async function loadContextNode(
 function extractLookupValue(
   state: typeof SalesState.State,
   lookupBy: string,
-  context?: Record<string, any>,
+  context?: Record<string, any>
 ): string | undefined {
   // Try context first (may have userId/email from widget)
   if (context?.[lookupBy]) {
@@ -127,9 +121,7 @@ function extractLookupValue(
 /**
  * Extract contact data from the first message metadata (pre-chat form).
  */
-function extractContactFromMetadata(
-  state: typeof SalesState.State,
-): IContactData {
+function extractContactFromMetadata(state: typeof SalesState.State): IContactData {
   const firstMsg = state.messages[0];
   const metadata =
     (firstMsg as any)?.additional_kwargs?.metadata ??

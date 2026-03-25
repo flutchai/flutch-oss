@@ -56,10 +56,11 @@ describe("saveContextNode", () => {
 
     const result = await saveContextNode(state, config as any);
 
-    expect(mockMcpClient.executeTool).toHaveBeenCalledWith(
-      "twenty_update_person",
-      { id: "crm-1", name: "Ivan", email: "ivan@test.com" },
-    );
+    expect(mockMcpClient.executeTool).toHaveBeenCalledWith("twenty_update_person", {
+      id: "crm-1",
+      name: "Ivan",
+      email: "ivan@test.com",
+    });
     expect(result).toEqual({});
   });
 
@@ -81,10 +82,10 @@ describe("saveContextNode", () => {
 
     const result = await saveContextNode(state, config as any);
 
-    expect(mockMcpClient.executeTool).toHaveBeenCalledWith(
-      "twenty_create_person",
-      { name: "New User", email: "new@test.com" },
-    );
+    expect(mockMcpClient.executeTool).toHaveBeenCalledWith("twenty_create_person", {
+      name: "New User",
+      email: "new@test.com",
+    });
     expect(result.contactData?.crmId).toBe("new-crm-id");
   });
 
@@ -105,7 +106,7 @@ describe("saveContextNode", () => {
     expect(result).toEqual({});
   });
 
-  it("passes _credentials in update call when apiKey is set", async () => {
+  it("passes _credentials from toolConfigs in update call", async () => {
     mockMcpClient.executeTool.mockResolvedValue({ success: true });
 
     const state = makeState({
@@ -113,29 +114,26 @@ describe("saveContextNode", () => {
     });
     const config = {
       configurable: {
-        crmConfig: {
-          provider: "twenty",
-          lookupBy: "email",
-          apiKey: "agent-key",
-          baseUrl: "http://crm.local",
-        },
+        crmConfig: { provider: "twenty", lookupBy: "email" },
         mcpClient: mockMcpClient,
+        toolConfigs: {
+          twenty_update_person: {
+            _credentials: { apiKey: "agent-key", baseUrl: "http://crm.local" },
+          },
+        },
       },
     };
 
     await saveContextNode(state, config as any);
 
-    expect(mockMcpClient.executeTool).toHaveBeenCalledWith(
-      "twenty_update_person",
-      {
-        id: "crm-1",
-        name: "Ivan",
-        _credentials: { apiKey: "agent-key", baseUrl: "http://crm.local" },
-      },
-    );
+    expect(mockMcpClient.executeTool).toHaveBeenCalledWith("twenty_update_person", {
+      id: "crm-1",
+      name: "Ivan",
+      _credentials: { apiKey: "agent-key", baseUrl: "http://crm.local" },
+    });
   });
 
-  it("passes _credentials in create call when apiKey is set", async () => {
+  it("passes _credentials from toolConfigs in create call", async () => {
     mockMcpClient.executeTool.mockResolvedValue({
       success: true,
       result: { id: "new-id" },
@@ -146,30 +144,29 @@ describe("saveContextNode", () => {
     });
     const config = {
       configurable: {
-        crmConfig: {
-          provider: "twenty",
-          lookupBy: "email",
-          apiKey: "agent-key",
-        },
+        crmConfig: { provider: "twenty", lookupBy: "email" },
         mcpClient: mockMcpClient,
+        toolConfigs: {
+          twenty_create_person: {
+            _credentials: { apiKey: "agent-key" },
+          },
+        },
       },
     };
 
     await saveContextNode(state, config as any);
 
-    expect(mockMcpClient.executeTool).toHaveBeenCalledWith(
-      "twenty_create_person",
-      {
-        name: "New",
-        _credentials: { apiKey: "agent-key" },
-      },
-    );
+    expect(mockMcpClient.executeTool).toHaveBeenCalledWith("twenty_create_person", {
+      name: "New",
+      _credentials: { apiKey: "agent-key" },
+    });
   });
 
   it("parses text-based create result from MCP", async () => {
     mockMcpClient.executeTool.mockResolvedValue({
       success: true,
-      result: '✅ Created person: New User\n\n{"id": "text-crm-id", "name": {"firstName": "New", "lastName": "User"}}',
+      result:
+        '✅ Created person: New User\n\n{"id": "text-crm-id", "name": {"firstName": "New", "lastName": "User"}}',
     });
 
     const state = makeState({
@@ -201,9 +198,9 @@ describe("saveContextNode", () => {
 
     await saveContextNode(state, config as any);
 
-    expect(mockMcpClient.executeTool).toHaveBeenCalledWith(
-      "zoho_update_contact",
-      { id: "z-1", First_Name: "Ivan" },
-    );
+    expect(mockMcpClient.executeTool).toHaveBeenCalledWith("zoho_update_contact", {
+      id: "z-1",
+      First_Name: "Ivan",
+    });
   });
 });

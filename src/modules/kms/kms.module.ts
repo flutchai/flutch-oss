@@ -15,7 +15,13 @@ export class KmsModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL_TOKEN) private readonly pool: Pool) {}
 
   static forRoot(): DynamicModule {
-    const required = ["POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"];
+    const required = [
+      "POSTGRES_HOST",
+      "POSTGRES_PORT",
+      "POSTGRES_USER",
+      "POSTGRES_PASSWORD",
+      "POSTGRES_DB",
+    ];
     for (const key of required) {
       if (!process.env[key]) throw new Error(`KmsModule: missing required env var ${key}`);
     }

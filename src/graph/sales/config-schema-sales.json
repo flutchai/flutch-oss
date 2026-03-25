@@ -18,18 +18,6 @@
           "description": "Which field to use for finding existing contacts",
           "default": "email",
           "enum": ["email", "phone"]
-        },
-        "apiKey": {
-          "type": "string",
-          "title": "CRM API Key",
-          "format": "password",
-          "description": "API key for CRM authentication"
-        },
-        "baseUrl": {
-          "type": "string",
-          "title": "CRM Base URL",
-          "format": "uri",
-          "description": "Base URL of the CRM instance (e.g. https://crm.example.com)"
         }
       }
     },

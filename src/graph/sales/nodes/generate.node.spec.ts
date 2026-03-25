@@ -56,7 +56,7 @@ describe("generateNode", () => {
     const config = { configurable: {} };
 
     await expect(generateNode(state, config as any)).rejects.toThrow(
-      "GenerateNode: modelInitializer not found in config.configurable",
+      "GenerateNode: modelInitializer not found in config.configurable"
     );
   });
 
@@ -88,7 +88,7 @@ describe("generateNode", () => {
     await generateNode(state, config);
 
     expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith(
-      expect.objectContaining({ modelId: "gpt-4o-mini" }),
+      expect.objectContaining({ modelId: "gpt-4o-mini" })
     );
   });
 
@@ -134,11 +134,7 @@ describe("generateNode", () => {
   });
 
   it("includes all state messages in model call", async () => {
-    const msgs = [
-      new HumanMessage("msg1"),
-      new AIMessage("msg2"),
-      new HumanMessage("msg3"),
-    ];
+    const msgs = [new HumanMessage("msg1"), new AIMessage("msg2"), new HumanMessage("msg3")];
     const state = makeState({ messages: msgs });
 
     await generateNode(state, makeConfig());
@@ -156,9 +152,7 @@ describe("generateNode", () => {
       ...mockModel,
       withConfig: jest.fn().mockReturnValue(mockCallbackModel),
     };
-    mockModelInitializer.initializeChatModel.mockResolvedValue(
-      mockModelWithConfig,
-    );
+    mockModelInitializer.initializeChatModel.mockResolvedValue(mockModelWithConfig);
 
     const langfuseCallback = { name: "langfuse" };
     const state = makeState();
@@ -189,7 +183,7 @@ describe("generateNode", () => {
           { toolName: "kb_search", enabled: true },
           { toolName: "web_search", enabled: true },
         ],
-      }),
+      })
     );
   });
 });
@@ -203,9 +197,7 @@ describe("shouldUseTools", () => {
 
   it("returns 'exec_tools' when last message has tool calls", () => {
     const aiMsg = new AIMessage({ content: "", tool_calls: [] });
-    (aiMsg as any).tool_calls = [
-      { id: "tc1", name: "some_tool", args: {} },
-    ];
+    (aiMsg as any).tool_calls = [{ id: "tc1", name: "some_tool", args: {} }];
     const state = makeState({ messages: [new HumanMessage("hi"), aiMsg] });
     expect(shouldUseTools(state)).toBe("exec_tools");
   });

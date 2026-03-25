@@ -82,6 +82,8 @@ export class AppModule implements OnModuleInit {
   async onModuleInit() {
     this.builderRegistry.registerBuilder(this.simpleBuilder);
     this.builderRegistry.registerBuilder(this.salesBuilder);
-    logger.log(`Registered graphs: ${this.simpleBuilder.graphType}, ${this.salesBuilder.graphType}`);
+    logger.log(
+      `Registered graphs: ${this.simpleBuilder.graphType}, ${this.salesBuilder.graphType}`
+    );
   }
 }

@@ -65,9 +65,7 @@ const basePayload = {
 describe("SalesGraphBuilder", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockLangfuseService.createCallbackHandler = jest
-      .fn()
-      .mockReturnValue(mockLangfuseCallback);
+    mockLangfuseService.createCallbackHandler = jest.fn().mockReturnValue(mockLangfuseCallback);
   });
 
   describe("metadata", () => {
@@ -182,8 +180,6 @@ describe("SalesGraphBuilder", () => {
               crm: {
                 provider: "twenty",
                 lookupBy: "email",
-                apiKey: "test-key",
-                baseUrl: "https://crm.test.com",
               },
             },
           },

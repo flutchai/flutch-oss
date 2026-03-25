@@ -34,7 +34,7 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
 
   constructor(
     @Optional() @Inject(CHECKPOINTER) private readonly checkpointer: any,
-    @Optional() private readonly langfuseService: LangfuseService | null,
+    @Optional() private readonly langfuseService: LangfuseService | null
   ) {
     super();
     this.mcpClient = new McpRuntimeHttpClient();
@@ -75,12 +75,9 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
 
   async buildGraph(payload?: IGraphRequestPayload): Promise<any> {
     const graphSettings: ISalesGraphSettings =
-      (payload?.config?.configurable?.graphSettings as ISalesGraphSettings) ??
-      {};
+      (payload?.config?.configurable?.graphSettings as ISalesGraphSettings) ?? {};
 
-    this.logger.debug(
-      `Building sales graph model=${graphSettings.modelId ?? "gpt-4o-mini"}`,
-    );
+    this.logger.debug(`Building sales graph model=${graphSettings.modelId ?? "gpt-4o-mini"}`);
 
     // Extract tool configs for exec-tools node (enriched args)
     const { toolConfigMap } = this.extractToolSettings(graphSettings);
@@ -122,9 +119,7 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
     const mcpClient = this.mcpClient;
     const systemPrompt = graphSettings.systemPrompt;
 
-    const crmConfig = graphSettings.crm?.provider
-      ? graphSettings.crm
-      : undefined;
+    const crmConfig = graphSettings.crm?.provider ? graphSettings.crm : undefined;
 
     const injectDeps = (config?: any) => ({
       ...config,
@@ -141,12 +136,10 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
     });
 
     const originalInvoke = compiled.invoke.bind(compiled);
-    compiled.invoke = async (input: any, config?: any) =>
-      originalInvoke(input, injectDeps(config));
+    compiled.invoke = async (input: any, config?: any) => originalInvoke(input, injectDeps(config));
 
     const originalStream = compiled.stream.bind(compiled);
-    compiled.stream = async (input: any, config?: any) =>
-      originalStream(input, injectDeps(config));
+    compiled.stream = async (input: any, config?: any) => originalStream(input, injectDeps(config));
 
     return compiled;
   }

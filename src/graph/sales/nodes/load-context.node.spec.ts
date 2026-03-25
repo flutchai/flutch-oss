@@ -84,13 +84,10 @@ describe("loadContextNode", () => {
     const result = await loadContextNode(state, config as any);
 
     // Should use twenty_list_people with filter
-    expect(mockMcpClient.executeTool).toHaveBeenCalledWith(
-      "twenty_list_people",
-      {
-        filter: JSON.stringify({ emails: { primaryEmail: { eq: "ivan@test.com" } } }),
-        limit: 1,
-      },
-    );
+    expect(mockMcpClient.executeTool).toHaveBeenCalledWith("twenty_list_people", {
+      filter: JSON.stringify({ emails: { primaryEmail: { eq: "ivan@test.com" } } }),
+      limit: 1,
+    });
     // Raw CRM structure preserved, system fields filtered
     expect(result.contactData?.crmId).toBe("crm-1");
     expect(result.contactData?.name).toEqual({ firstName: "Ivan", lastName: "Petrov" });
@@ -103,7 +100,8 @@ describe("loadContextNode", () => {
   it("parses text-based MCP result", async () => {
     mockMcpClient.executeTool.mockResolvedValue({
       success: true,
-      result: 'Found 1 person\n\n[{"id": "crm-1", "name": {"firstName": "Ivan", "lastName": ""}, "emails": {"primaryEmail": "ivan@test.com"}, "jobTitle": "CEO", "city": "Moscow"}]',
+      result:
+        'Found 1 person\n\n[{"id": "crm-1", "name": {"firstName": "Ivan", "lastName": ""}, "emails": {"primaryEmail": "ivan@test.com"}, "jobTitle": "CEO", "city": "Moscow"}]',
     });
 
     const state = makeState({ messages: [new HumanMessage("hi")] });
@@ -154,7 +152,7 @@ describe("loadContextNode", () => {
       expect.objectContaining({
         filter: expect.any(String),
         limit: 1,
-      }),
+      })
     );
     expect(result.contactData?.crmId).toBe("crm-2");
   });
@@ -231,7 +229,7 @@ describe("loadContextNode", () => {
     expect(result.contactData).toEqual({ email: "user@test.com", name: "User" });
   });
 
-  it("passes _credentials when apiKey is in crmConfig", async () => {
+  it("passes _credentials from toolConfigs", async () => {
     mockMcpClient.executeTool.mockResolvedValue({
       success: true,
       result: [{ id: "crm-1", name: { firstName: "Ivan" }, emails: { primaryEmail: "" } }],
@@ -240,14 +238,14 @@ describe("loadContextNode", () => {
     const state = makeState({ messages: [new HumanMessage("hi")] });
     const config = {
       configurable: {
-        crmConfig: {
-          provider: "twenty",
-          lookupBy: "email",
-          apiKey: "test-key",
-          baseUrl: "http://crm.local",
-        },
+        crmConfig: { provider: "twenty", lookupBy: "email" },
         mcpClient: mockMcpClient,
         context: { email: "ivan@test.com" },
+        toolConfigs: {
+          twenty_list_people: {
+            _credentials: { apiKey: "test-key", baseUrl: "http://crm.local" },
+          },
+        },
       },
     };
 
@@ -257,11 +255,11 @@ describe("loadContextNode", () => {
       "twenty_list_people",
       expect.objectContaining({
         _credentials: { apiKey: "test-key", baseUrl: "http://crm.local" },
-      }),
+      })
     );
   });
 
-  it("does not pass _credentials when apiKey is not set", async () => {
+  it("does not pass _credentials when toolConfigs has no entry", async () => {
     mockMcpClient.executeTool.mockResolvedValue({
       success: true,
       result: [{ id: "crm-1", name: { firstName: "Ivan" }, emails: { primaryEmail: "" } }],
@@ -300,9 +298,8 @@ describe("loadContextNode", () => {
     await loadContextNode(state, config as any);
 
     // Zoho uses simple lookup args (not filter)
-    expect(mockMcpClient.executeTool).toHaveBeenCalledWith(
-      "zoho_search_contacts",
-      { email: "ivan@zoho.com" },
-    );
+    expect(mockMcpClient.executeTool).toHaveBeenCalledWith("zoho_search_contacts", {
+      email: "ivan@zoho.com",
+    });
   });
 });

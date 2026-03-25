@@ -1,16 +1,8 @@
 import { Logger } from "@nestjs/common";
-import {
-  AIMessage,
-  BaseMessage,
-  SystemMessage,
-} from "@langchain/core/messages";
+import { AIMessage, BaseMessage, SystemMessage } from "@langchain/core/messages";
 import type { IAgentToolConfig } from "@flutchai/flutch-sdk";
 import { SalesState } from "../sales.annotations";
-import {
-  IContactData,
-  ISalesToolConfig,
-  SalesRunnableConfig,
-} from "../sales.types";
+import { IContactData, ISalesToolConfig, SalesRunnableConfig } from "../sales.types";
 
 const logger = new Logger("GenerateNode");
 
@@ -20,23 +12,19 @@ const logger = new Logger("GenerateNode");
  */
 export async function generateNode(
   state: typeof SalesState.State,
-  config: SalesRunnableConfig,
+  config: SalesRunnableConfig
 ): Promise<Partial<typeof SalesState.State>> {
   const modelInitializer = config?.configurable?.modelInitializer;
 
   if (!modelInitializer) {
-    throw new Error(
-      "GenerateNode: modelInitializer not found in config.configurable",
-    );
+    throw new Error("GenerateNode: modelInitializer not found in config.configurable");
   }
 
   const graphSettings = config?.configurable?.graphSettings ?? {};
   const modelId = graphSettings.modelId ?? "gpt-4o-mini";
   const temperature = graphSettings.temperature;
   const maxTokens = graphSettings.maxTokens;
-  const toolsConfig = mapAvailableToolsToAgentConfig(
-    graphSettings.availableTools,
-  );
+  const toolsConfig = mapAvailableToolsToAgentConfig(graphSettings.availableTools);
 
   // Lazy model creation (cached by ModelInitializer)
   let model = await modelInitializer.initializeChatModel({
@@ -63,9 +51,7 @@ export async function generateNode(
   }
   messages.push(...state.messages);
 
-  logger.debug(
-    `Generating response (${messages.length} messages, model=${modelId})`,
-  );
+  logger.debug(`Generating response (${messages.length} messages, model=${modelId})`);
 
   const response = (await model.invoke(messages, config)) as AIMessage;
   const text = typeof response.content === "string" ? response.content : "";
@@ -78,7 +64,7 @@ export async function generateNode(
  * Handles both string[] and ISalesToolConfig[] formats.
  */
 function mapAvailableToolsToAgentConfig(
-  availableTools?: (string | ISalesToolConfig)[],
+  availableTools?: (string | ISalesToolConfig)[]
 ): IAgentToolConfig[] | undefined {
   if (!availableTools || availableTools.length === 0) return undefined;
 
@@ -102,7 +88,7 @@ function mapAvailableToolsToAgentConfig(
  */
 function buildFullSystemPrompt(
   basePrompt: string | undefined,
-  contactData: IContactData | undefined,
+  contactData: IContactData | undefined
 ): string | undefined {
   if (!basePrompt) return undefined;
 
@@ -115,10 +101,7 @@ function buildFullSystemPrompt(
 
   const contactLines = Object.entries(fields)
     .filter(([, v]) => v != null && v !== "")
-    .map(
-      ([k, v]) =>
-        `  ${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`,
-    )
+    .map(([k, v]) => `  ${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
     .join("\n");
 
   if (!contactLines) return basePrompt;
@@ -129,9 +112,7 @@ function buildFullSystemPrompt(
 /**
  * Routing function: check if the generation contains tool calls.
  */
-export function shouldUseTools(
-  state: typeof SalesState.State,
-): "exec_tools" | "save_context" {
+export function shouldUseTools(state: typeof SalesState.State): "exec_tools" | "save_context" {
   const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
   const toolCalls = lastMessage?.tool_calls ?? [];
   return toolCalls.length > 0 ? "exec_tools" : "save_context";

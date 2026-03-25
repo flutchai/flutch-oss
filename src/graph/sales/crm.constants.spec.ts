@@ -2,7 +2,6 @@ import {
   filterSystemFields,
   getCrmToolName,
   SYSTEM_FIELDS,
-  buildCrmCredentials,
   parseMcpResult,
   buildLookupArgs,
 } from "./crm.constants";
@@ -134,26 +133,6 @@ describe("crm.constants", () => {
       expect(SYSTEM_FIELDS.has("Created_Time")).toBe(true);
       expect(SYSTEM_FIELDS.has("Owner")).toBe(true);
       expect(SYSTEM_FIELDS.has("$approved")).toBe(true);
-    });
-  });
-
-  describe("buildCrmCredentials", () => {
-    it("returns credentials when apiKey and baseUrl are set", () => {
-      expect(buildCrmCredentials({ apiKey: "key1", baseUrl: "http://crm" }))
-        .toEqual({ apiKey: "key1", baseUrl: "http://crm" });
-    });
-
-    it("returns credentials with only apiKey", () => {
-      expect(buildCrmCredentials({ apiKey: "key1" }))
-        .toEqual({ apiKey: "key1" });
-    });
-
-    it("returns undefined when no credentials", () => {
-      expect(buildCrmCredentials({})).toBeUndefined();
-    });
-
-    it("returns undefined when values are empty strings", () => {
-      expect(buildCrmCredentials({ apiKey: "", baseUrl: "" })).toBeUndefined();
     });
   });
 

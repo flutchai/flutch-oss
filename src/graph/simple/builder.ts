@@ -78,9 +78,7 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
       try {
         const mcpTools = await this.mcpClient.getTools();
         const enabledToolNames = new Set(toolsDef.map((t: any) => t.name));
-        const filteredTools = mcpTools.filter((t: any) =>
-          enabledToolNames.has(t.name),
-        );
+        const filteredTools = mcpTools.filter((t: any) => enabledToolNames.has(t.name));
 
         if (filteredTools.length > 0) {
           boundModel = (model as any).bindTools(filteredTools);
@@ -178,16 +176,14 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
                 }),
                 tool_call_id: toolCall.id ?? toolCall.name,
                 name: toolCall.name,
-              }),
+              })
             );
           }
         }
 
         return {
           messages: toolMessages,
-          ...(Object.keys(newAttachments).length > 0
-            ? { attachments: newAttachments }
-            : {}),
+          ...(Object.keys(newAttachments).length > 0 ? { attachments: newAttachments } : {}),
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

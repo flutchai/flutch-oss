@@ -1,7 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { SalesState } from "../sales.annotations";
 import { SalesRunnableConfig } from "../sales.types";
-import { filterSystemFields, getCrmToolName, buildCrmCredentials, parseMcpResult } from "../crm.constants";
+import { filterSystemFields, getCrmToolName, parseMcpResult } from "../crm.constants";
 
 const logger = new Logger("SaveContextNode");
 
@@ -14,10 +14,11 @@ const logger = new Logger("SaveContextNode");
  */
 export async function saveContextNode(
   state: typeof SalesState.State,
-  config: SalesRunnableConfig,
+  config: SalesRunnableConfig
 ): Promise<Partial<typeof SalesState.State>> {
   const crmConfig = config?.configurable?.crmConfig;
   const mcpClient = config?.configurable?.mcpClient;
+  const toolConfigs = config?.configurable?.toolConfigs ?? {};
 
   if (!crmConfig || !mcpClient) {
     logger.debug("save_context: no CRM config or mcpClient, skipping");
@@ -41,37 +42,35 @@ export async function saveContextNode(
       return {};
     }
 
-    const _credentials = buildCrmCredentials(crmConfig);
-
     if (crmId) {
       // Update existing contact
       const toolName = getCrmToolName(crmConfig.provider, "update");
+      const toolConfig = toolConfigs[toolName] ?? {};
       logger.debug(`Updating contact ${crmId} via ${toolName}`);
 
       await mcpClient.executeTool(toolName, {
         id: crmId,
         ...dataToWrite,
-        ...(_credentials && { _credentials }),
+        ...toolConfig,
       });
 
       logger.log(`Updated contact ${crmId} in ${crmConfig.provider}`);
     } else {
       // Create new contact
       const toolName = getCrmToolName(crmConfig.provider, "create");
+      const toolConfig = toolConfigs[toolName] ?? {};
       logger.debug(`Creating new contact via ${toolName}`);
 
       const result = await mcpClient.executeTool(toolName, {
         ...dataToWrite,
-        ...(_credentials && { _credentials }),
+        ...toolConfig,
       });
 
       if (result.success && result.result) {
         const parsed = parseMcpResult(result.result);
         const newId = parsed?.id;
         if (newId) {
-          logger.log(
-            `Created contact ${newId} in ${crmConfig.provider}`,
-          );
+          logger.log(`Created contact ${newId} in ${crmConfig.provider}`);
           return {
             contactData: { ...contactData, crmId: newId },
           };
@@ -79,9 +78,7 @@ export async function saveContextNode(
       }
     }
   } catch (error) {
-    logger.warn(
-      `CRM save failed: ${error instanceof Error ? error.message : error}`,
-    );
+    logger.warn(`CRM save failed: ${error instanceof Error ? error.message : error}`);
   }
 
   return {};
