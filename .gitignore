@@ -11,3 +11,5 @@ package-lock.json
 coverage/
 agents.json
 CLAUDE.local.md
+.claude/
+docker-compose.twenty.yml

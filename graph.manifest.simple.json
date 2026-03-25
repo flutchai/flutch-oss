@@ -1,0 +1,46 @@
+{
+  "companySlug": "flutch",
+  "name": "simple",
+  "title": "Flutch Simple Agent",
+  "description": "Simple chat agent with optional tool support",
+  "detailedDescription": "Basic Q&A agent with system prompt configuration and MCP tool integration. Suitable for general-purpose conversational workflows.",
+
+  "category": "agent",
+  "author": "Flutch Team",
+  "maintainer": "Flutch Team",
+  "repository": "flutchai/flutch-oss",
+  "tags": ["agent", "chat", "tools", "conversation"],
+  "visibility": "public",
+
+  "ui": {
+    "enabled": false,
+    "title": "Simple Agent Configuration",
+    "description": "Configure simple agent settings",
+    "defaultScreen": "settings",
+    "menu": ["settings"],
+    "screens": {},
+    "theme": {
+      "primaryColor": "#059669",
+      "accentColor": "#0ea5e9"
+    },
+    "permissions": {
+      "read": ["USER", "ADMIN"],
+      "write": ["ADMIN"]
+    }
+  },
+
+  "versioning": {
+    "strategy": "semver",
+    "defaultVersion": "1.0.0",
+    "supportedVersions": ["1.0.0"]
+  },
+
+  "versions": {
+    "1.0.0": {
+      "status": "stable",
+      "releaseDate": "2026-03-18T00:00:00.000Z",
+      "isActive": true,
+      "configSchemaPath": "./config-schema-simple.json"
+    }
+  }
+}

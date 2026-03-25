@@ -543,9 +543,7 @@ describe("AdminKbService", () => {
       const article = makeArticle("art-1", "kb-1", false);
       articleRepo.findOne.mockResolvedValue(article);
 
-      await expect(service.updateArticle("kb-1", "art-1", {})).rejects.toThrow(
-        BadRequestException
-      );
+      await expect(service.updateArticle("kb-1", "art-1", {})).rejects.toThrow(BadRequestException);
       expect(articleRepo.update).not.toHaveBeenCalled();
     });
   });

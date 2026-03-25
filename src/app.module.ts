@@ -32,19 +32,24 @@ const logger = new Logger("AppModule");
       engineType: GraphEngineType.LANGGRAPH,
       versioning: [
         {
-          baseGraphType: "flutch.agent",
+          baseGraphType: "flutch.simple",
           versions: [
             {
-              version: "simple",
+              version: "1.0.0",
               builderClass: SimpleGraphBuilder,
               isDefault: true,
             },
+          ],
+        },
+        {
+          baseGraphType: "flutch.sales",
+          versions: [
             {
-              version: "sales",
+              version: "1.0.0",
               builderClass: SalesGraphBuilder,
+              isDefault: true,
             },
           ],
-          defaultVersionStrategy: "latest",
         },
       ],
     }),
@@ -77,6 +82,8 @@ export class AppModule implements OnModuleInit {
   async onModuleInit() {
     this.builderRegistry.registerBuilder(this.simpleBuilder);
     this.builderRegistry.registerBuilder(this.salesBuilder);
-    logger.log(`Registered graphs: ${this.simpleBuilder.graphType}, ${this.salesBuilder.graphType}`);
+    logger.log(
+      `Registered graphs: ${this.simpleBuilder.graphType}, ${this.salesBuilder.graphType}`
+    );
   }
 }

@@ -29,11 +29,11 @@ const AgentState = Annotation.Root({
 
 /**
  * Simple agent graph — LLM call with optional system prompt and tool support.
- * graphType: flutch.agent::simple
+ * graphType: flutch.simple::1.0.0
  */
 @Injectable()
-export class SimpleGraphBuilder extends AbstractGraphBuilder<"simple"> {
-  readonly version = "simple" as const;
+export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
+  readonly version = "1.0.0" as const;
   protected readonly logger = new Logger(SimpleGraphBuilder.name);
   private readonly mcpClient: McpRuntimeHttpClient;
 
@@ -46,7 +46,7 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"simple"> {
   }
 
   get graphType(): string {
-    return "flutch.agent::simple";
+    return "flutch.simple::1.0.0";
   }
 
   async buildGraph(payload?: IGraphRequestPayload): Promise<any> {
@@ -78,9 +78,7 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"simple"> {
       try {
         const mcpTools = await this.mcpClient.getTools();
         const enabledToolNames = new Set(toolsDef.map((t: any) => t.name));
-        const filteredTools = mcpTools.filter((t: any) =>
-          enabledToolNames.has(t.name),
-        );
+        const filteredTools = mcpTools.filter((t: any) => enabledToolNames.has(t.name));
 
         if (filteredTools.length > 0) {
           boundModel = (model as any).bindTools(filteredTools);
@@ -178,16 +176,14 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"simple"> {
                 }),
                 tool_call_id: toolCall.id ?? toolCall.name,
                 name: toolCall.name,
-              }),
+              })
             );
           }
         }
 
         return {
           messages: toolMessages,
-          ...(Object.keys(newAttachments).length > 0
-            ? { attachments: newAttachments }
-            : {}),
+          ...(Object.keys(newAttachments).length > 0 ? { attachments: newAttachments } : {}),
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

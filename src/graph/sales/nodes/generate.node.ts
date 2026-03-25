@@ -1,35 +1,46 @@
 import { Logger } from "@nestjs/common";
-import { RunnableConfig } from "@langchain/core/runnables";
-import {
-  AIMessage,
-  BaseMessage,
-  SystemMessage,
-} from "@langchain/core/messages";
-import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { AIMessage, BaseMessage, SystemMessage } from "@langchain/core/messages";
+import type { IAgentToolConfig } from "@flutchai/flutch-sdk";
 import { SalesState } from "../sales.annotations";
-import { IContactData } from "../sales.types";
+import { IContactData, ISalesToolConfig, SalesRunnableConfig } from "../sales.types";
 
 const logger = new Logger("GenerateNode");
 
 /**
  * Invokes the LLM with system prompt + message history.
- * Model and systemPrompt are passed via config.configurable.salesModel / systemPrompt.
+ * Model is created lazily via ModelInitializer from config.configurable.
  */
 export async function generateNode(
   state: typeof SalesState.State,
-  config: RunnableConfig,
+  config: SalesRunnableConfig
 ): Promise<Partial<typeof SalesState.State>> {
-  const model: BaseChatModel | undefined =
-    (config?.configurable as any)?.salesModel;
+  const modelInitializer = config?.configurable?.modelInitializer;
 
-  if (!model) {
-    throw new Error(
-      "GenerateNode: salesModel not found in config.configurable",
-    );
+  if (!modelInitializer) {
+    throw new Error("GenerateNode: modelInitializer not found in config.configurable");
   }
 
-  const systemPrompt: string | undefined =
-    (config?.configurable as any)?.systemPrompt;
+  const graphSettings = config?.configurable?.graphSettings ?? {};
+  const modelId = graphSettings.modelId ?? "gpt-4o-mini";
+  const temperature = graphSettings.temperature;
+  const maxTokens = graphSettings.maxTokens;
+  const toolsConfig = mapAvailableToolsToAgentConfig(graphSettings.availableTools);
+
+  // Lazy model creation (cached by ModelInitializer)
+  let model = await modelInitializer.initializeChatModel({
+    modelId,
+    temperature,
+    maxTokens,
+    toolsConfig,
+  });
+
+  // Apply Langfuse tracing callback if available
+  const langfuseCallback = config?.configurable?.langfuseCallback;
+  if (langfuseCallback) {
+    model = (model as any).withConfig({ callbacks: [langfuseCallback] });
+  }
+
+  const systemPrompt = config?.configurable?.systemPrompt;
 
   // Build full system prompt with contact context
   const fullPrompt = buildFullSystemPrompt(systemPrompt, state.contactData);
@@ -40,7 +51,7 @@ export async function generateNode(
   }
   messages.push(...state.messages);
 
-  logger.debug(`Generating response (${messages.length} messages)`);
+  logger.debug(`Generating response (${messages.length} messages, model=${modelId})`);
 
   const response = (await model.invoke(messages, config)) as AIMessage;
   const text = typeof response.content === "string" ? response.content : "";
@@ -49,11 +60,35 @@ export async function generateNode(
 }
 
 /**
+ * Map sales graph availableTools to SDK IAgentToolConfig[].
+ * Handles both string[] and ISalesToolConfig[] formats.
+ */
+function mapAvailableToolsToAgentConfig(
+  availableTools?: (string | ISalesToolConfig)[]
+): IAgentToolConfig[] | undefined {
+  if (!availableTools || availableTools.length === 0) return undefined;
+
+  return availableTools
+    .map((tool): IAgentToolConfig | null => {
+      if (typeof tool === "string") {
+        return { toolName: tool, enabled: true };
+      }
+      if (!tool?.name) return null;
+      return {
+        toolName: tool.name,
+        enabled: tool.enabled !== false,
+        config: tool.config,
+      };
+    })
+    .filter((t): t is IAgentToolConfig => t !== null);
+}
+
+/**
  * Append contact context to system prompt if contactData is present.
  */
 function buildFullSystemPrompt(
   basePrompt: string | undefined,
-  contactData: IContactData | undefined,
+  contactData: IContactData | undefined
 ): string | undefined {
   if (!basePrompt) return undefined;
 
@@ -77,9 +112,7 @@ function buildFullSystemPrompt(
 /**
  * Routing function: check if the generation contains tool calls.
  */
-export function shouldUseTools(
-  state: typeof SalesState.State,
-): "exec_tools" | "save_context" {
+export function shouldUseTools(state: typeof SalesState.State): "exec_tools" | "save_context" {
   const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
   const toolCalls = lastMessage?.tool_calls ?? [];
   return toolCalls.length > 0 ? "exec_tools" : "save_context";

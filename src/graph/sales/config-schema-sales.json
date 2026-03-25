@@ -1,6 +1,26 @@
 {
   "type": "object",
   "properties": {
+    "crm": {
+      "type": "object",
+      "title": "CRM Integration",
+      "description": "Configure contact synchronization with CRM",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "title": "CRM Provider",
+          "description": "Which CRM system to use for contact management",
+          "enum": ["twenty", "zoho"]
+        },
+        "lookupBy": {
+          "type": "string",
+          "title": "Contact Lookup Field",
+          "description": "Which field to use for finding existing contacts",
+          "default": "email",
+          "enum": ["email", "phone"]
+        }
+      }
+    },
     "systemPrompt": {
       "type": "string",
       "title": "System Prompt",
@@ -30,6 +50,14 @@
       "maximum": 4000,
       "description": "Maximum tokens in response"
     },
+    "recursionLimit": {
+      "type": "integer",
+      "title": "Recursion Limit",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Maximum number of graph iterations (tool call loops)"
+    },
     "availableTools": {
       "type": "toolSelector",
       "title": "Available Tools",
@@ -38,30 +66,6 @@
         "isMulti": true,
         "showDescriptions": true
       }
-    },
-    "crm": {
-      "type": "object",
-      "title": "CRM Integration",
-      "description": "Configure contact synchronization with CRM",
-      "properties": {
-        "lookupBy": {
-          "type": "string",
-          "title": "Contact Lookup Field",
-          "description": "Which field to use for finding existing contacts",
-          "enum": ["email", "phone"],
-          "default": "email"
-        },
-        "writeFields": {
-          "type": "array",
-          "title": "Write Fields",
-          "description": "Fields to write back to CRM after conversation. Leave empty to write all non-system fields.",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": ["lookupBy"]
     }
-  },
-  "required": ["systemPrompt", "modelId"]
+  }
 }

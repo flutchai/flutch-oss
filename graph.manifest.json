@@ -40,15 +40,15 @@
       "status": "stable",
       "releaseDate": "2026-03-18T00:00:00.000Z",
       "isActive": true,
-      "visibility": "public",
-      "configSchemaPath": "./config-schema-simple.json"
+      "visibility": "corporate",
+      "configSchemaPath": "./src/graph/sales/config-schema-simple.json"
     },
     "sales": {
       "status": "stable",
       "releaseDate": "2026-03-18T00:00:00.000Z",
       "isActive": true,
-      "visibility": "public",
-      "configSchemaPath": "./config-schema-sales.json"
+      "visibility": "corporate",
+      "configSchemaPath": "./src/graph/sales/config-schema-sales.json"
     }
   }
 }

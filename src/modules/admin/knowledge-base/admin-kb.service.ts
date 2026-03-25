@@ -180,7 +180,9 @@ export class AdminKbService {
       try {
         await this.searchService.removeArticleFromIndex(article.id);
       } catch (e) {
-        this.logger.error(`Failed to remove article ${article.id} from index during KB deletion: ${e?.message}`);
+        this.logger.error(
+          `Failed to remove article ${article.id} from index during KB deletion: ${e?.message}`
+        );
       }
     }
 
