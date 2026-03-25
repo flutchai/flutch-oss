@@ -1,128 +1,25 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## 0.7.0-alpha.2
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Refactored
 
-## [Unreleased]
-
-## [0.7.0-alpha.1] - 2026-03-19
-
-### Added
-- **Sales graph** (`flutch.agent::sales`) — new LangGraph-based agent type for consultative sales scenarios
-- **CRM integration** — `load_context` node fetches contact from CRM (Twenty/Zoho) before generation; `save_context` node upserts contact data after generation
-- **Dynamic contact context** — contact fields are injected into the system prompt automatically at runtime
-- **Tool binding** — `availableTools` in graph settings supports both string names and `{name, enabled, config}` objects
-- **CRM field filtering** — `filterSystemFields` removes internal CRM metadata (ids, timestamps, `__typename`) per-provider blacklist
-- **CI: skip draft PRs** — all CI jobs (`unit-tests`, `client-tests`, `e2e-tests`) are skipped on draft pull requests; CI triggers on `ready_for_review` event
-
-### Changed
-- Sales graph state simplified: `messages`, `text`, `contactData`, `attachments` (removed `generation`, `systemPrompt`, `leadProfile`, `topicsMap`, `calculatorData`)
-- `graphSettings` schema for sales: `modelId`, `temperature`, `maxTokens`, `systemPrompt`, `availableTools`, `crm` (removed `prompt`, `topics`, `extraction` objects)
-- Runtime dependencies (`salesModel`, `mcpClient`, `toolConfigs`, `systemPrompt`, `crmConfig`) injected via `invoke`/`stream` wrappers instead of state
-
-### Note
-> **Alpha release** — CRM lookup and save are functional but the full qualification topics workflow (extraction, prompt builder, topics map) is deferred to `0.7.0`. The graph is fully usable without CRM (`crmConfig` is optional).
-
-## [0.6.1] - 2026-03-18
+- Move CRM credentials (`apiKey`, `baseUrl`) from graph config to `toolConfigs[toolName]._credentials`, aligning with MCP Runtime convention
+- Remove `buildCrmCredentials` helper — nodes now read credentials directly from `toolConfigs`
+- Remove `apiKey` / `baseUrl` from `ICrmConfig` interface and `config-schema-sales.json`
 
 ### Added
-- **Docker Publish workflow** — GitHub Actions pipeline that builds and pushes the Docker image to GHCR (`ghcr.io/flutchai/flutch-oss`) on every `v*` tag push; produces `x.y.z`, `x.y`, and `latest` tags with GHA layer caching
 
-## [0.6.0] - 2026-03-18
+- Split sales graph types into dedicated `sales.types.ts`
+- Lazy model initialization via `ModelInitializer` (cached per modelId)
 
-### Added
-- **Knowledge Base management** — full CRUD for knowledge bases and articles via `/admin/api/knowledge-bases`
-- **Vector search** — pgvector-backed article indexing via `@flutchai/knowledge`; articles are automatically indexed on publish and removed on unpublish/delete
-- **KmsModule** — new NestJS module wiring TypeORM entities with `@flutchai/knowledge` library; validates required env vars at startup
-- **Desktop UI** — `KnowledgeBases` and `KnowledgeBaseDetail` pages with per-row pending state on toggle/delete
-- **Mobile UI** — `MobileKnowledgeBases` and `MobileKnowledgeBaseDetail` pages under `/admin/m/knowledge-bases`
-- Navigation entries (sidebar + bottom nav) for Knowledge Bases
-- Migration `202603150000-AddKmsTables` — creates `knowledge_bases` and `articles` tables
-- Validation: `@IsNotEmpty()` on KB name; publish blocked when article has no draft content
-- Unit tests covering all CRUD paths, publish/unpublish, index cleanup, and error cases
-- E2E tests with real PostgreSQL + pgvector
+### Chores
 
-### Fixed
-- CI e2e job now uses `pgvector/pgvector:pg16` instead of `postgres:16-alpine` — required for `CREATE EXTENSION vector` on app startup
-- `updateKb` throws `BadRequestException` on empty PATCH body instead of crashing TypeORM with an empty update set
-- Migration uses `gen_random_uuid()` (built-in) instead of `uuid_generate_v4()` which required the `uuid-ossp` extension
+- Add `.claude/` and `docker-compose.twenty.yml` to `.gitignore`
 
-## [0.5.1] - 2026-03-14
+## 0.7.0-alpha.1
 
-### Added
-- CI: `client-tests` job runs Vitest (109 tests) with V8 coverage reporting
-- CI: PR coverage comment now has two sections — **Backend** (Jest) and **Client** (Vitest)
-- `client/package.json`: `test:cov` script (`vitest run --coverage`)
-- `client/vitest.config.ts`: V8 coverage config with `json-summary` reporter
-- `client/.gitignore`: ignores `node_modules/`, `dist/`, `coverage/`, `.yarn/` internals
-- `client/yarn.lock`: lockfile for reproducible installs
-
-### Changed
-- Migrated `client/` from npm to Yarn — `packageManager: yarn@4.5.3`
-- Root `package.json` client scripts use `yarn --cwd client` instead of `npm --prefix client`
-- `test:all` now runs: backend unit → client → e2e
-
-### Fixed
-- `client/package-lock.json` removed from git (project uses Yarn exclusively)
-- Added missing `@testing-library/dom` peer dependency for `@testing-library/react`
-
-## [0.5.0] - 2026-03-14
-
-### Fixed
-- **Fail-fast config hardening** — removed all silent fallback values for required environment variables across the codebase (follow-up to code review):
-  - `AgentConfigService`: `CONFIG_MODE` now uses `getOrThrow` — missing var throws at startup instead of defaulting to `"local"`
-  - `DatabaseModule`: all 5 Postgres params (`POSTGRES_HOST/PORT/USER/PASSWORD/DB`) use `getOrThrow`
-  - `data-source.ts` (TypeORM CLI): `requireEnv()` helper throws on any missing Postgres var — CLI migrations fail fast
-  - `AdminSettingsService`: removed `""` fallbacks for `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FLUTCH_PLATFORM_URL`, `WEBHOOK_BASE_URL`, `CONFIG_MODE`
-  - `LangfuseService`: `LANGFUSE_HOST` no longer defaults to `"localhost"` — URL is built only when both `LANGFUSE_HOST` and `LANGFUSE_PORT` are set
-- **Tests**: added `root.controller.spec.ts` covering `serveAdmin()` SPA path resolution, asset serving, and error fallback to `index.html`
-
-## [0.4.0] - 2026-03-14
-
-### Added
-- **LangFuse tracing** — `LangfuseService` creates a per-request `CallbackHandler` bound to the LLM via `model.withConfig({ callbacks })`, tagging each trace with `userId`, `agentId`, `threadId`
-- `LangfuseModule` — `@Global()` module, auto-registered in `AppModule`
-- Flexible `baseUrl` resolution: `LANGFUSE_BASE_URL` (explicit) → `LANGFUSE_HOST:LANGFUSE_PORT` (auto-build) → LangFuse Cloud (fallback)
-- `langfuse-langchain` dependency
-- LangFuse env vars documented in `.env.example` (`LANGFUSE_ENABLED`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_PORT`, `LANGFUSE_HOST`)
-
-### Changed
-- `AgentV1Builder` — injects optional `LangfuseService`, creates callback handler per `buildGraph()` call with full request context
-
-## [0.3.0] - 2026-03-13
-
-### Added
-- Mini Admin UI — React + Vite frontend served at `/admin/`
-- Desktop layout with collapsible sidebar navigation (Dashboard, Agents, Conversations, Users, Settings)
-- Mobile layout at `/admin/m/` with bottom navigation bar; auto-redirect by user-agent
-- Mobile-specific pages: MobileDashboard, MobileConversations (cards), MobileUsers (cards), MobileConversationDetail (chat bubbles), MobileUserDetail, MobileAgents, MobileSettings
-- Admin backend module: auth (JWT), agents, conversations, users, dashboard stats, settings API
-- `AdminUser` entity + migration `202603130000-AddAdminUsers`
-- `RootController` — serves admin UI static files
-- All UI strings in English; all tested elements use `data-testid` selectors
-
-## [0.2.0] - 2026-03-10
-
-### Added
-- `EngineController` — new `POST /agent/stream` and `POST /agent/generate` endpoints that accept `{agentId, userId, input}` instead of raw graph payload
-- `EngineService.buildPayload()` — assembles full `IGraphRequestPayload` from resolved agent context
-- `AgentConfigService` — resolves agent configuration from local `agents.json` (standalone mode) or Flutch Platform API (connected mode), controlled by `CONFIG_MODE` env variable
-- `ModelFactory` (`createModel`) — creates ChatOpenAI or ChatAnthropic instance from `graphSettings`, with automatic provider inference from model name
-- `@langchain/openai` and `@langchain/anthropic` as direct dependencies (previously transitive only)
-- `agents.example.json` — example agent configuration file for standalone mode
-- Full test coverage for `EngineService`, `AgentConfigService`, `ModelFactory`, and `AgentV1Builder`
-
-### Changed
-- `AgentV1Builder.buildGraph()` now uses `ModelFactory` and reads `graphSettings` from payload (model, systemPrompt, temperature, maxTokens)
-- README: updated configuration section with new env variables and `agents.json` format
-
-## [0.1.0] - 2025-03-10
-
-### Added
-- Initial project scaffold based on Flutch SDK
-- Generic agent graph v1.0.0 (placeholder for vertical-specific logic)
-- Docker Compose stack: engine, MongoDB, Ragflow, Prometheus, Promtail
-- ESLint + Prettier configuration
-- GitHub Actions CI workflow (lint, format check, tests, build)
+- Initial sales graph with CRM integration (Twenty, Zoho)
+- MCP Runtime tool execution with attachments
+- Load/save context nodes for contact lookup and upsert
+- Knowledge base admin module with search indexing
