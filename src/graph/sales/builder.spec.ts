@@ -2,6 +2,11 @@ import { SalesGraphBuilder } from "./builder";
 import { StateGraph } from "@langchain/langgraph";
 import { LangfuseService } from "../../modules/langfuse/langfuse.service";
 
+const mockMcpClient = {
+  getTools: jest.fn().mockResolvedValue([]),
+  executeTool: jest.fn(),
+};
+
 const mockModelInitializer = {
   initializeChatModel: jest.fn().mockResolvedValue({
     invoke: jest.fn().mockResolvedValue({ content: "ok", tool_calls: [] }),
@@ -23,10 +28,6 @@ jest.mock("@flutchai/flutch-sdk", () => ({
   ModelInitializer: jest.fn().mockImplementation(() => mockModelInitializer),
   executeToolWithAttachments: jest.fn(),
   IGraphAttachment: {},
-}));
-
-jest.mock("../model-config-fetcher", () => ({
-  createOssConfigFetcher: jest.fn().mockReturnValue(jest.fn()),
 }));
 
 const compileSpy = jest.spyOn(StateGraph.prototype, "compile");
@@ -70,31 +71,56 @@ describe("SalesGraphBuilder", () => {
 
   describe("metadata", () => {
     it("has correct graphType", () => {
-      const builder = new SalesGraphBuilder(null, null);
-      expect(builder.graphType).toBe("flutch.sales::1.0.0");
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
+      expect(builder.graphType).toBe("flutch.sales::2.0.0");
     });
 
     it("has correct version", () => {
-      const builder = new SalesGraphBuilder(null, null);
-      expect(builder.version).toBe("1.0.0");
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
+      expect(builder.version).toBe("2.0.0");
     });
   });
 
   describe("buildGraph — basic", () => {
     it("builds a compiled graph", async () => {
-      const builder = new SalesGraphBuilder(null, null);
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       const graph = await builder.buildGraph(basePayload);
       expect(graph).toBeDefined();
     });
 
     it("compiles without checkpointer", async () => {
-      const builder = new SalesGraphBuilder(null, null);
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       await builder.buildGraph(basePayload);
       expect(compileSpy).toHaveBeenCalledWith({ checkpointer: undefined });
     });
 
     it("builds successfully when no graphSettings provided", async () => {
-      const builder = new SalesGraphBuilder(null, null);
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       const graph = await builder.buildGraph();
       expect(graph).toBeDefined();
     });
@@ -102,7 +128,12 @@ describe("SalesGraphBuilder", () => {
 
   describe("buildGraph — with checkpointer", () => {
     it("compiles with injected checkpointer", async () => {
-      const builder = new SalesGraphBuilder(mockCheckpointer, null);
+      const builder = new SalesGraphBuilder(
+        mockCheckpointer,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       await builder.buildGraph(basePayload);
       expect(compileSpy).toHaveBeenCalledWith({
         checkpointer: mockCheckpointer,
@@ -112,7 +143,12 @@ describe("SalesGraphBuilder", () => {
 
   describe("buildGraph — langfuse", () => {
     it("calls createCallbackHandler with context from payload", async () => {
-      const builder = new SalesGraphBuilder(null, mockLangfuseService);
+      const builder = new SalesGraphBuilder(
+        null,
+        mockLangfuseService,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       await builder.buildGraph(basePayload);
       expect(mockLangfuseService.createCallbackHandler).toHaveBeenCalledWith({
         userId: "user-1",
@@ -122,31 +158,19 @@ describe("SalesGraphBuilder", () => {
     });
 
     it("injects langfuseCallback into configurable", async () => {
-      const builder = new SalesGraphBuilder(null, mockLangfuseService);
+      const builder = new SalesGraphBuilder(
+        null,
+        mockLangfuseService,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       const graph = await builder.buildGraph(basePayload);
-
-      // The wrapper injects deps — we can verify by inspecting the invoke wrapper
       expect(typeof graph.invoke).toBe("function");
     });
   });
 
-  describe("buildGraph — dependency injection", () => {
-    it("injects modelInitializer into configurable", async () => {
-      const builder = new SalesGraphBuilder(null, null);
-      const graph = await builder.buildGraph(basePayload);
-
-      // Verify invoke wrapper works (it injects deps)
-      expect(typeof graph.invoke).toBe("function");
-      expect(typeof graph.stream).toBe("function");
-    });
-
-    it("injects graphSettings into configurable", async () => {
-      const builder = new SalesGraphBuilder(null, null);
-      const graph = await builder.buildGraph(basePayload);
-      expect(graph).toBeDefined();
-    });
-
-    it("extracts toolConfigMap from availableTools", async () => {
+  describe("buildGraph — settings", () => {
+    it("builds graph with availableTools in graphSettings", async () => {
       const payloadWithToolConfig = {
         ...basePayload,
         config: {
@@ -164,12 +188,17 @@ describe("SalesGraphBuilder", () => {
         },
       };
 
-      const builder = new SalesGraphBuilder(null, null);
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       const graph = await builder.buildGraph(payloadWithToolConfig);
       expect(graph).toBeDefined();
     });
 
-    it("injects crmConfig when crm.provider is set", async () => {
+    it("builds graph with crm config in graphSettings", async () => {
       const payloadWithCrm = {
         ...basePayload,
         config: {
@@ -177,24 +206,116 @@ describe("SalesGraphBuilder", () => {
             ...basePayload.config.configurable,
             graphSettings: {
               ...basePayload.config.configurable.graphSettings,
-              crm: {
-                provider: "twenty",
-                lookupBy: "email",
-              },
+              crm: { provider: "twenty", lookupBy: "email" },
             },
           },
         },
       };
 
-      const builder = new SalesGraphBuilder(null, null);
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       const graph = await builder.buildGraph(payloadWithCrm);
+      expect(graph).toBeDefined();
+    });
+  });
+
+  describe("buildGraph — presets", () => {
+    it("resolves b2b_bant preset steps", async () => {
+      const payloadWithPreset = {
+        ...basePayload,
+        config: {
+          configurable: {
+            ...basePayload.config.configurable,
+            graphSettings: {
+              ...basePayload.config.configurable.graphSettings,
+              preset: "b2b_bant",
+            },
+          },
+        },
+      };
+
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
+      const graph = await builder.buildGraph(payloadWithPreset);
+      expect(graph).toBeDefined();
+    });
+
+    it("resolves b2c_service preset steps", async () => {
+      const payloadWithPreset = {
+        ...basePayload,
+        config: {
+          configurable: {
+            ...basePayload.config.configurable,
+            graphSettings: {
+              ...basePayload.config.configurable.graphSettings,
+              preset: "b2c_service",
+            },
+          },
+        },
+      };
+
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
+      const graph = await builder.buildGraph(payloadWithPreset);
+      expect(graph).toBeDefined();
+    });
+
+    it("uses custom steps when provided (overrides preset)", async () => {
+      const customSteps = [
+        {
+          id: "custom1",
+          name: "Custom Step",
+          prompt: "Do something custom",
+          fields: [{ name: "field1", description: "A field", required: true }],
+          tools: [],
+        },
+      ];
+
+      const payloadWithCustom = {
+        ...basePayload,
+        config: {
+          configurable: {
+            ...basePayload.config.configurable,
+            graphSettings: {
+              ...basePayload.config.configurable.graphSettings,
+              preset: "b2b_bant",
+              steps: customSteps,
+            },
+          },
+        },
+      };
+
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
+      const graph = await builder.buildGraph(payloadWithCustom);
       expect(graph).toBeDefined();
     });
   });
 
   describe("buildGraph — invoke/stream wrapper", () => {
     it("compiled graph has invoke and stream functions", async () => {
-      const builder = new SalesGraphBuilder(null, null);
+      const builder = new SalesGraphBuilder(
+        null,
+        null,
+        mockMcpClient as any,
+        mockModelInitializer as any
+      );
       const graph = await builder.buildGraph(basePayload);
       expect(typeof graph.invoke).toBe("function");
       expect(typeof graph.stream).toBe("function");

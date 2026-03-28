@@ -1,4 +1,4 @@
-import type { McpRuntimeHttpClient, ModelInitializer } from "@flutchai/flutch-sdk";
+import type { BaseGraphContext, IGraphConfigurable } from "@flutchai/flutch-sdk";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 
 // ── Graph State ──
@@ -10,43 +10,51 @@ export interface IContactData {
   [key: string]: any;
 }
 
-// ── Runtime Configurable (injected by builder into config.configurable) ──
+// ── Qualification Steps ──
 
-export interface ISalesConfigurable {
-  /** ModelInitializer for lazy model creation in generate node */
-  modelInitializer?: ModelInitializer;
-  /** MCP Runtime client for tool execution */
-  mcpClient?: McpRuntimeHttpClient;
-  /** Per-tool config from graphSettings */
-  toolConfigs?: Record<string, any>;
-  /** System prompt built from graphSettings */
-  systemPrompt?: string;
-  /** Langfuse callback handler (created by builder, applied by generate node) */
-  langfuseCallback?: any;
-  /** CRM config (merged from graphSettings + env provider) */
-  crmConfig?: ICrmRuntimeConfig;
-  /** Runtime context from caller (userId, agentId, threadId, etc.) */
-  context?: {
-    userId?: string;
-    agentId?: string;
-    threadId?: string;
-    messageId?: string;
-    platform?: string;
-    companyId?: string;
-    email?: string;
-    phone?: string;
-    [key: string]: any;
-  };
-  /** LangGraph thread ID */
-  thread_id?: string;
-  /** Graph settings from DB/payload */
-  graphSettings?: ISalesGraphSettings;
+export interface IStepField {
+  name: string;
+  description: string;
+  required: boolean;
+}
+
+export interface IStepConfig {
+  id: string;
+  name: string;
+  prompt: string;
+  fields: IStepField[];
+  /** MCP tool names available in this step. Empty = no step-specific tools. */
+  tools: string[];
+}
+
+export type QualificationOutcome = "qualified" | "nurture" | "disqualified";
+
+export interface ILeadScore {
+  score: number;
+  outcome: QualificationOutcome;
+  reasons: string[];
+  scoredAt: string;
+}
+
+export type QualificationPreset = "b2b_bant" | "b2c_service" | "custom";
+
+// ── Runtime Config (LangGraph configurable — uses SDK types) ──
+
+/** Sales-specific context extends SDK's BaseGraphContext with lookup fields */
+export interface ISalesContext extends BaseGraphContext {
+  email?: string;
+  phone?: string;
+}
+
+/** Sales configurable — extends SDK's IGraphConfigurable */
+export interface ISalesConfigurable extends IGraphConfigurable<ISalesGraphSettings> {
+  context?: ISalesContext;
 }
 
 /** Typed config for sales graph nodes */
 export type SalesRunnableConfig = LangGraphRunnableConfig<ISalesConfigurable>;
 
-// ── Graph Config (from graphSettings) ──
+// ── Graph Settings (from DB/admin UI) ──
 
 export interface ISalesGraphSettings {
   systemPrompt?: string;
@@ -56,6 +64,17 @@ export interface ISalesGraphSettings {
   availableTools?: (string | ISalesToolConfig)[];
   recursionLimit?: number;
   crm?: ICrmConfig;
+  /** Qualification preset — determines default steps */
+  preset?: QualificationPreset;
+  /** Qualification steps (from preset or custom) */
+  steps?: IStepConfig[];
+  /** MCP tools to run for enrichment on first message (async, fire-and-forget).
+   *  Accepts same format as availableTools — string names or {name, enabled, config} objects. */
+  enrichmentTools?: (string | ISalesToolConfig)[];
+  /** Auto-handoff qualified leads (true) or wait for human approval (false) */
+  autoHandoff?: boolean;
+  /** Webhook URL for qualified lead handoff */
+  handoffWebhookUrl?: string;
 }
 
 export interface ISalesToolConfig {
@@ -64,7 +83,7 @@ export interface ISalesToolConfig {
   config?: Record<string, any>;
 }
 
-export type CrmProvider = "twenty" | "zoho";
+export type CrmProvider = "twenty" | "zoho" | "jobber";
 
 /** CRM config from graphSettings (UI). */
 export interface ICrmConfig {
@@ -74,5 +93,16 @@ export interface ICrmConfig {
   lookupBy: "email" | "phone";
 }
 
-/** Runtime CRM config passed to nodes. Same as ICrmConfig — kept for clarity. */
-export type ICrmRuntimeConfig = ICrmConfig;
+// ── Utilities ──
+
+/** Extract per-tool config map from graphSettings.availableTools */
+export function extractToolConfigs(graphSettings?: ISalesGraphSettings): Record<string, any> {
+  const raw = graphSettings?.availableTools ?? [];
+  const result: Record<string, any> = {};
+  for (const tool of raw) {
+    if (typeof tool !== "string" && tool?.name && tool.config) {
+      result[tool.name] = tool.config;
+    }
+  }
+  return result;
+}

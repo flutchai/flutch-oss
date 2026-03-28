@@ -63,6 +63,12 @@ const CRM_TOOL_MAP: Record<string, Record<string, string>> = {
     update: "zoho_update_contact",
     upsert: "zoho_upsert_contact",
   },
+  jobber: {
+    find: "jobber_list_clients",
+    get: "jobber_get_client",
+    create: "jobber_create_client",
+    update: "jobber_update_client",
+  },
 };
 
 /**
@@ -125,6 +131,11 @@ export function buildLookupArgs(
     }
 
     return { filter: JSON.stringify(filter), limit: 1 };
+  }
+
+  if (provider === "jobber") {
+    // Jobber list_clients uses searchTerm parameter
+    return { searchTerm: value, first: 1 };
   }
 
   // Default: simple key=value

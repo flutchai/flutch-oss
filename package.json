@@ -1,6 +1,6 @@
 {
   "name": "@flutchai/flutch-oss",
-  "version": "0.7.0-alpha.1",
+  "version": "0.7.0-alpha.3",
   "description": "Flutch OSS — standalone agent engine for on-premise deployment",
   "main": "dist/index.js",
   "scripts": {

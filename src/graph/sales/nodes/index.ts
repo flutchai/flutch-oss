@@ -1,4 +1,2 @@
-export { loadContextNode } from "./load-context.node";
-export { generateNode, shouldUseTools } from "./generate.node";
-export { execToolsNode } from "./exec-tools.node";
-export { saveContextNode } from "./save-context.node";
+// Node logic lives in builder.ts as class methods (monorepo pattern).
+// This directory only contains node-specific test files.

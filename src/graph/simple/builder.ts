@@ -39,10 +39,11 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
 
   constructor(
     @Optional() @Inject(CHECKPOINTER) private readonly checkpointer: any,
-    @Optional() private readonly langfuseService: LangfuseService | null
+    @Optional() private readonly langfuseService: LangfuseService | null,
+    mcpClient: McpRuntimeHttpClient
   ) {
     super();
-    this.mcpClient = new McpRuntimeHttpClient();
+    this.mcpClient = mcpClient;
   }
 
   get graphType(): string {
