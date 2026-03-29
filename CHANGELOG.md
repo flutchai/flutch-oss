@@ -5,33 +5,41 @@
 ### Breaking Changes
 
 - **Sales graph v2** (`flutch.sales::2.0.0`) — graph version bumped from `1.0.0` to `2.0.0`; existing checkpoints are incompatible
-- Remove standalone node files (`load-context.node.ts`, `save-context.node.ts`, `generate.node.ts`, `exec-tools.node.ts`) — all node logic now lives as class methods in `builder.ts`
+- Remove standalone node files — all node logic now lives as class methods in `builder.ts`
 - `ISalesConfigurable` now extends SDK's `IGraphConfigurable` instead of defining its own fields
+- **`graphSettings` restructured** into nested groups: `conversation`, `crm`, `qualification`, `safety` — flat config no longer supported
+
+### Removed
+
+- Step-based qualification system (`presets.ts`, `transition-tool.ts`, `advance_step` tool, `IStepConfig`, `QualificationPreset`)
+- Lead scoring (`ILeadScore`, `scoreAndHandoff`)
+- Output guardrail node
+- Auto-handoff (`autoHandoff`, `handoffWebhookUrl`)
+- State channels: `currentStep`, `steps`, `qualificationData`, `leadScore`
+- `ISalesContext` — replaced by SDK's `BaseGraphContext`
 
 ### Added
 
-- **Step-based qualification flow** with configurable steps, fields, and per-step tool access
-- Qualification presets (`b2b_bant`, `b2c_service`, `custom`) via new `presets.ts` with `resolveSteps()`
-- `advance_step` transition tool — LLM calls it to move between qualification steps; validates required fields before advancing
-- Lead scoring (`ILeadScore`) with `qualified` / `nurture` / `disqualified` outcomes
-- New state channels: `currentStep`, `steps`, `qualificationData`, `leadScore`, `enrichmentStatus`
-- Async lead enrichment on first message via `enrichmentTools` setting
-- Auto-handoff support (`autoHandoff`, `handoffWebhookUrl`) for qualified leads
-- Jobber CRM provider support (`jobber_list_clients`, `jobber_get_client`, `jobber_create_client`, `jobber_update_client`)
-- `config-schema-sales.json` extended with `preset`, `steps`, `enrichmentTools`, `autoHandoff`, `handoffWebhookUrl`
+- **Field-based qualification checklist** — `qualificationFields` array replaces rigid step system; AI collects fields naturally in conversation
+- **Async extraction** (fire-and-forget) — cheap model extracts qualification data from conversation and writes to CRM every turn
+- **Message windowing** — `conversation.messageWindowSize` controls how many messages are sent to LLM (default 50)
+- `requestMetadata` state channel — extracted once from first message metadata
+- `enrichmentTools` moved into CRM config group
+- `contactFieldsWhitelist` — controls which CRM fields are visible to AI in system prompt
+- Jobber CRM provider support
+- `input_sanitize` node for prompt injection detection
 
 ### Refactored
 
-- Merge `context_sync` node (load + save + enrichment) into a single graph node, replacing separate `load_context` → `save_context` flow
-- Graph builder now receives `McpRuntimeHttpClient` and `ModelInitializer` via DI (constructor injection) instead of creating them internally
-- `extractToolConfigs()` utility moved to `sales.types.ts`
-- `ISalesContext` extends SDK's `BaseGraphContext` with `email` / `phone` lookup fields
+- Simplified 4-node graph: `context_sync → input_sanitize → generate ⇄ exec_tools → END`
+- CRM = source of truth; `contactData` reducer changed from merge to replace (full reload each turn)
+- Config schema grouped: `conversation` (model, prompt, tools), `crm` (provider, enrichment), `qualification` (fields, extraction), `safety` (sanitization)
+- Graph builder receives `McpRuntimeHttpClient` and `ModelInitializer` via DI
 
 ### Tests
 
-- Rewrite builder, generate, and exec-tools specs for v2 architecture
-- Add `presets.spec.ts` and `transition-tool.spec.ts` for new modules
-- Add `context-sync.node.spec.ts` for merged context sync node
+- 77 sales graph tests across 6 suites
+- Full coverage for context-sync (CRM load, extraction, enrichment), generate (windowing, qualification prompt), exec-tools, input-sanitize, builder, routing
 
 ## 0.7.0-alpha.2
 
