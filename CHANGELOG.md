@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.1
+
+### Added
+
+- **Mistral AI support** — new `"mistral"` provider in `ModelFactory`; auto-detected from model name (`mistral-*`, `mixtral-*`); routes through Flutch Gateway via `serverURL`
+- **`FLUTCH_API_TOKEN`** — unified platform token for Flutch Gateway; when set, replaces per-provider keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `MISTRAL_API_KEY`) for all providers
+- **PostgreSQL SSL** — `POSTGRES_SSL=true` env var enables SSL with `rejectUnauthorized: false` (for managed/cloud Postgres)
+
+### Changed
+
+- Upgrade `@flutchai/flutch-sdk` to `0.2.15`
+- Add `@langchain/mistralai ^1.0.7` dependency
+
 ## 0.7.0
 
 ### Breaking Changes
