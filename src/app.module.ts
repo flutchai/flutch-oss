@@ -12,6 +12,7 @@ import { CheckpointerModule } from "./modules/checkpointer/checkpointer.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { LangfuseModule } from "./modules/langfuse/langfuse.module";
 import { KmsModule } from "./modules/kms/kms.module";
+import { PgPoolModule } from "./modules/pg-pool/pg-pool.module";
 import {
   BaseGraphServiceController,
   BuilderRegistryService,
@@ -56,6 +57,7 @@ const logger = new Logger("AppModule");
         },
       ],
     }),
+    PgPoolModule.forRoot(),
     CheckpointerModule,
     LangfuseModule,
     EngineModule,

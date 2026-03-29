@@ -1,7 +1,7 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import { Pool } from "pg";
+import { PG_POOL_TOKEN } from "../pg-pool/pg-pool.module";
 
 export const CHECKPOINTER = "CHECKPOINTER";
 
@@ -10,14 +10,7 @@ export class CheckpointerService implements OnModuleInit {
   private readonly logger = new Logger(CheckpointerService.name);
   readonly saver: PostgresSaver;
 
-  constructor(private readonly configService: ConfigService) {
-    const databaseUrl = this.configService.getOrThrow<string>("DATABASE_URL");
-    const ssl = this.configService.get<string>("POSTGRES_SSL") === "true"
-      ? { rejectUnauthorized: false }
-      : false;
-    const url = new URL(databaseUrl);
-    url.searchParams.delete("sslmode");
-    const pool = new Pool({ connectionString: url.toString(), ssl });
+  constructor(@Inject(PG_POOL_TOKEN) pool: Pool) {
     this.saver = new PostgresSaver(pool, undefined, { schema: "public" });
   }
 

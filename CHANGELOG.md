@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.5
+
+### Changed
+
+- **Shared PostgreSQL pool** — extracted `PgPoolModule` (global) that creates a single `pg.Pool` singleton from `POSTGRES_*` env vars; `KmsModule` and `CheckpointerService` now share this pool instead of each creating their own
+- **`CheckpointerService`** — removed `DATABASE_URL` dependency; now injects `PG_POOL_TOKEN` from `PgPoolModule`; pool lifecycle (shutdown) managed centrally by `PgPoolModule`
+- **`KmsModule`** — removed own pool creation and `onApplicationShutdown`; uses `getSharedPool()` to receive the shared instance
+- **`AppModule`** — imports `PgPoolModule.forRoot()` before other modules to ensure pool is ready
+
 ## 0.7.4
 
 ### Fixed
