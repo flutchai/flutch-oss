@@ -18,28 +18,34 @@ export interface ModelSettings {
 /**
  * Creates a LangChain chat model.
  *
- * Token resolution order:
- *   1. FLUTCH_API_TOKEN — platform token for Flutch Gateway. Used when
- *      FLUTCH_ROUTER_URL points to the Flutch router (https://router.flutch.ai).
- *      The router validates the token and injects the real provider key internally.
- *   2. OPENAI_API_KEY / ANTHROPIC_API_KEY / MISTRAL_API_KEY — real provider keys.
- *      Used in standalone mode when FLUTCH_ROUTER_URL points to the provider's
- *      native URL (or is not set at all).
+ * Two modes:
+ *   Gateway mode (FLUTCH_API_TOKEN is set) —
+ *     All requests are routed through Flutch Gateway (FLUTCH_ROUTER_URL, default
+ *     https://router.flutch.ai). The router validates FLUTCH_API_TOKEN and injects
+ *     the real provider key internally. All providers share the same token.
  *
- * Router URL: env FLUTCH_ROUTER_URL (default: https://router.flutch.ai).
+ *   Standalone mode (FLUTCH_API_TOKEN is NOT set) —
+ *     Provider base URLs are NOT overridden; LangChain uses native provider APIs
+ *     (api.openai.com, api.anthropic.com, api.mistral.ai). Real provider API keys
+ *     are read from OPENAI_API_KEY / ANTHROPIC_API_KEY / MISTRAL_API_KEY.
  */
 export function createModel(settings: ModelSettings): BaseChatModel {
   const provider = settings.provider ?? inferProvider(settings.model);
   const temperature = settings.temperature ?? 0.7;
   const maxTokens = settings.maxTokens ?? 2048;
-  const routerURL = process.env.FLUTCH_ROUTER_URL ?? DEFAULT_ROUTER_URL;
 
-  // When FLUTCH_API_TOKEN is set — use it as auth for the gateway.
-  // When not set — pass undefined; LangChain will pick up the standard provider
-  // env vars (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) on its own.
   const platformToken = process.env.FLUTCH_API_TOKEN;
 
-  logger.debug(`Creating model: provider=${provider} model=${settings.model} router=${routerURL}`);
+  // Only route through gateway when platform token is configured.
+  // Standalone mode: gatewayURL is undefined → provider base URLs are not overridden.
+  const gatewayURL = platformToken
+    ? (process.env.FLUTCH_ROUTER_URL ?? DEFAULT_ROUTER_URL)
+    : undefined;
+
+  logger.debug(
+    `Creating model: provider=${provider} model=${settings.model}` +
+    (gatewayURL ? ` gateway=${gatewayURL}` : " (standalone)")
+  );
 
   switch (provider) {
     case "anthropic":
@@ -47,8 +53,10 @@ export function createModel(settings: ModelSettings): BaseChatModel {
         modelName: settings.model,
         temperature,
         maxTokens,
-        anthropicApiUrl: routerURL,
-        anthropicApiKey: platformToken,
+        // In standalone mode anthropicApiUrl is omitted → api.anthropic.com is used.
+        ...(gatewayURL ? { anthropicApiUrl: gatewayURL } : {}),
+        // undefined → ChatAnthropic reads ANTHROPIC_API_KEY from env.
+        ...(platformToken ? { anthropicApiKey: platformToken } : {}),
         streaming: true,
       }) as unknown as BaseChatModel;
 
@@ -57,10 +65,12 @@ export function createModel(settings: ModelSettings): BaseChatModel {
         model: settings.model,
         temperature,
         maxTokens,
-        apiKey: platformToken,
-        // Mistral requires an explicit serverURL — without it the SDK ignores
-        // FLUTCH_ROUTER_URL and always hits api.mistral.ai directly.
-        serverURL: `${routerURL}/v1`,
+        // undefined → ChatMistralAI reads MISTRAL_API_KEY from env.
+        ...(platformToken ? { apiKey: platformToken } : {}),
+        // Mistral SDK ignores FLUTCH_ROUTER_URL on its own; serverURL must be
+        // set explicitly to route through the gateway. In standalone mode it is
+        // omitted so Mistral uses api.mistral.ai directly.
+        ...(gatewayURL ? { serverURL: `${gatewayURL}/v1` } : {}),
       }) as unknown as BaseChatModel;
 
     case "openai":
@@ -69,8 +79,10 @@ export function createModel(settings: ModelSettings): BaseChatModel {
         modelName: settings.model,
         temperature,
         maxTokens,
-        configuration: { baseURL: `${routerURL}/v1` },
-        openAIApiKey: platformToken,
+        // In standalone mode configuration is omitted → api.openai.com is used.
+        ...(gatewayURL ? { configuration: { baseURL: `${gatewayURL}/v1` } } : {}),
+        // undefined → ChatOpenAI reads OPENAI_API_KEY from env.
+        ...(platformToken ? { openAIApiKey: platformToken } : {}),
         streaming: true,
       });
   }

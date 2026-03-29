@@ -33,6 +33,7 @@ export class KmsModule implements OnApplicationShutdown {
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB,
       max: 10,
+      ssl: process.env.POSTGRES_SSL === "true" ? { rejectUnauthorized: false } : false,
     });
 
     return {
