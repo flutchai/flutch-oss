@@ -13,11 +13,21 @@ export const SalesState = Annotation.Root({
     default: () => "",
   }),
   contactData: Annotation<IContactData>({
-    reducer: (_x, y) => ({ ..._x, ...y }),
+    reducer: (_x, y) => y,
     default: () => ({}),
   }),
   attachments: Annotation<Record<string, IGraphAttachment>>({
     reducer: (_x, y) => ({ ..._x, ...y }),
+    default: () => ({}),
+  }),
+  /** Enrichment status — null means not started, "requested" means fired */
+  enrichmentStatus: Annotation<"requested" | null>({
+    reducer: (_x, y) => y,
+    default: () => null,
+  }),
+  /** Request metadata from the platform (email, phone, custom fields). Extracted once from first message. */
+  requestMetadata: Annotation<Record<string, any>>({
+    reducer: (x, y) => (Object.keys(y).length > 0 ? y : x),
     default: () => ({}),
   }),
 });

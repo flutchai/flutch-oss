@@ -1,6 +1,45 @@
-import { generateNode, shouldUseTools } from "./generate.node";
+import {
+  SalesGraphBuilder,
+  routeAfterInputSanitize,
+  routeAfterGenerate,
+} from "../builder";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { SalesState } from "../sales.annotations";
+
+const mockAiResponse = new AIMessage({
+  content: "Here is my response",
+  tool_calls: [],
+});
+const mockModel = {
+  invoke: jest.fn().mockResolvedValue(mockAiResponse),
+  bindTools: jest.fn().mockReturnThis(),
+};
+
+const mockModelInitializer = {
+  initializeChatModel: jest.fn().mockResolvedValue(mockModel),
+};
+
+jest.mock("../../../modules/langfuse/langfuse.service", () => ({
+  LangfuseService: jest.fn(),
+}));
+
+jest.mock("@flutchai/flutch-sdk", () => ({
+  AbstractGraphBuilder: class {
+    constructor() {}
+  },
+  McpRuntimeHttpClient: jest.fn().mockImplementation(() => ({
+    getTools: jest.fn().mockResolvedValue([]),
+    executeTool: jest.fn(),
+  })),
+  ModelInitializer: jest.fn().mockImplementation(() => mockModelInitializer),
+  executeToolWithAttachments: jest.fn(),
+  IGraphAttachment: {},
+}));
+
+const mockMcpClient = {
+  getTools: jest.fn().mockResolvedValue([]),
+  executeTool: jest.fn(),
+};
 
 type State = typeof SalesState.State;
 
@@ -10,37 +49,44 @@ function makeState(overrides: Partial<State> = {}): State {
     text: "",
     contactData: {},
     attachments: {},
+    enrichmentStatus: null,
+    requestMetadata: {},
     ...overrides,
   };
 }
 
-const mockAiResponse = new AIMessage({
-  content: "Here is my response",
-  tool_calls: [],
-});
-const mockModel = {
-  invoke: jest.fn().mockResolvedValue(mockAiResponse),
-};
-
-const mockModelInitializer = {
-  initializeChatModel: jest.fn().mockResolvedValue(mockModel),
-};
-
 function makeConfig(overrides: Record<string, any> = {}) {
+  const { graphSettings: gsOverride, ...rest } = overrides;
   return {
     configurable: {
-      modelInitializer: mockModelInitializer,
-      graphSettings: { modelId: "gpt-4o-mini" },
-      ...overrides,
+      graphSettings: {
+        conversation: { modelId: "gpt-4o-mini" },
+        ...gsOverride,
+      },
+      ...rest,
     },
   } as any;
 }
 
+function createBuilder(): SalesGraphBuilder {
+  return new SalesGraphBuilder(null, null, mockMcpClient as any, mockModelInitializer as any);
+}
+
+function getGenerateNode(builder: SalesGraphBuilder) {
+  return (builder as any).generateNode.bind(builder);
+}
+
 describe("generateNode", () => {
+  let builder: SalesGraphBuilder;
+  let generateNode: (state: State, config: any, langfuseCallback?: any) => Promise<Partial<State>>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockModel.invoke.mockResolvedValue(mockAiResponse);
+    mockModel.bindTools.mockReturnValue(mockModel);
     mockModelInitializer.initializeChatModel.mockResolvedValue(mockModel);
+    builder = createBuilder();
+    generateNode = getGenerateNode(builder);
   });
 
   it("returns text and appends to messages", async () => {
@@ -51,23 +97,16 @@ describe("generateNode", () => {
     expect(result.text).toBe("Here is my response");
   });
 
-  it("throws when modelInitializer is not in config", async () => {
-    const state = makeState();
-    const config = { configurable: {} };
-
-    await expect(generateNode(state, config as any)).rejects.toThrow(
-      "GenerateNode: modelInitializer not found in config.configurable"
-    );
-  });
-
   it("calls initializeChatModel with correct params from graphSettings", async () => {
     const state = makeState();
     const config = makeConfig({
       graphSettings: {
-        modelId: "claude-3-haiku",
-        temperature: 0.5,
-        maxTokens: 1024,
-        availableTools: [{ name: "kb_search", enabled: true }],
+        conversation: {
+          modelId: "claude-3-haiku",
+          temperature: 0.5,
+          maxTokens: 1024,
+          availableTools: [{ name: "kb_search", enabled: true }],
+        },
       },
     });
 
@@ -95,7 +134,7 @@ describe("generateNode", () => {
   it("prepends SystemMessage when systemPrompt is set", async () => {
     const { SystemMessage } = await import("@langchain/core/messages");
     const state = makeState();
-    const config = makeConfig({ systemPrompt: "Be helpful." });
+    const config = makeConfig({ graphSettings: { conversation: { systemPrompt: "Be helpful." } } });
 
     await generateNode(state, config);
 
@@ -107,7 +146,7 @@ describe("generateNode", () => {
 
   it("does not prepend SystemMessage when systemPrompt is empty", async () => {
     const state = makeState();
-    const config = makeConfig({ systemPrompt: "" });
+    const config = makeConfig({ graphSettings: { conversation: { systemPrompt: "" } } });
 
     await generateNode(state, config);
 
@@ -116,11 +155,11 @@ describe("generateNode", () => {
     expect(messages[0]).toBeInstanceOf(HumanMessage);
   });
 
-  it("appends contactData to system prompt", async () => {
+  it("appends whitelisted contactData to system prompt (defaults)", async () => {
     const state = makeState({
-      contactData: { crmId: "crm-1", name: "Ivan", email: "ivan@test.com" },
+      contactData: { crmId: "crm-1", name: "Ivan", email: "ivan@test.com", company: "Acme" },
     });
-    const config = makeConfig({ systemPrompt: "You are a sales agent." });
+    const config = makeConfig({ graphSettings: { conversation: { systemPrompt: "You are a sales agent." } } });
 
     await generateNode(state, config);
 
@@ -128,8 +167,31 @@ describe("generateNode", () => {
     const systemMsg = calls[0][0];
     expect(systemMsg.content).toContain("About the customer");
     expect(systemMsg.content).toContain("name: Ivan");
+    expect(systemMsg.content).toContain("company: Acme");
+    // email is NOT in default whitelist
+    expect(systemMsg.content).not.toContain("email");
+    expect(systemMsg.content).not.toContain("crmId");
+  });
+
+  it("uses custom contactFieldsWhitelist from config", async () => {
+    const state = makeState({
+      contactData: { crmId: "crm-1", name: "Ivan", email: "ivan@test.com", phone: "+123" },
+    });
+    const config = makeConfig({
+      graphSettings: {
+        conversation: { systemPrompt: "You are a sales agent." },
+        qualification: { contactFieldsWhitelist: ["email"] },
+      },
+    });
+
+    await generateNode(state, config);
+
+    const calls = mockModel.invoke.mock.calls[0];
+    const systemMsg = calls[0][0];
     expect(systemMsg.content).toContain("email: ivan@test.com");
-    // crmId should not appear in the prompt
+    // name and phone are NOT in custom whitelist
+    expect(systemMsg.content).not.toContain("name: Ivan");
+    expect(systemMsg.content).not.toContain("phone");
     expect(systemMsg.content).not.toContain("crmId");
   });
 
@@ -147,6 +209,7 @@ describe("generateNode", () => {
   it("applies langfuseCallback via withConfig when present", async () => {
     const mockCallbackModel = {
       invoke: jest.fn().mockResolvedValue(mockAiResponse),
+      bindTools: jest.fn().mockReturnThis(),
     };
     const mockModelWithConfig = {
       ...mockModel,
@@ -156,9 +219,8 @@ describe("generateNode", () => {
 
     const langfuseCallback = { name: "langfuse" };
     const state = makeState();
-    const config = makeConfig({ langfuseCallback });
 
-    await generateNode(state, config);
+    await generateNode(state, makeConfig(), langfuseCallback);
 
     expect(mockModelWithConfig.withConfig).toHaveBeenCalledWith({
       callbacks: [langfuseCallback],
@@ -170,8 +232,10 @@ describe("generateNode", () => {
     const state = makeState();
     const config = makeConfig({
       graphSettings: {
-        modelId: "gpt-4o-mini",
-        availableTools: ["kb_search", "web_search"],
+        conversation: {
+          modelId: "gpt-4o-mini",
+          availableTools: ["kb_search", "web_search"],
+        },
       },
     });
 
@@ -186,19 +250,132 @@ describe("generateNode", () => {
       })
     );
   });
-});
 
-describe("shouldUseTools", () => {
-  it("returns 'save_context' when last message has no tool calls", () => {
-    const lastMsg = new AIMessage({ content: "response", tool_calls: [] });
-    const state = makeState({ messages: [new HumanMessage("hi"), lastMsg] });
-    expect(shouldUseTools(state)).toBe("save_context");
+  describe("message windowing", () => {
+    it("applies messageWindowSize to limit messages sent to model", async () => {
+      const msgs = Array.from({ length: 100 }, (_, i) =>
+        i % 2 === 0 ? new HumanMessage(`msg-${i}`) : new AIMessage(`reply-${i}`)
+      );
+      const state = makeState({ messages: msgs });
+      const config = makeConfig({ graphSettings: { conversation: { messageWindowSize: 10 } } });
+
+      await generateNode(state, config);
+
+      const calls = mockModel.invoke.mock.calls[0];
+      const passedMessages = calls[0];
+      // system prompt + 10 windowed messages
+      expect(passedMessages).toHaveLength(10);
+    });
+
+    it("defaults to 50 messages when messageWindowSize not set", async () => {
+      const msgs = Array.from({ length: 60 }, (_, i) =>
+        i % 2 === 0 ? new HumanMessage(`msg-${i}`) : new AIMessage(`reply-${i}`)
+      );
+      const state = makeState({ messages: msgs });
+      const config = makeConfig({ graphSettings: {} });
+
+      await generateNode(state, config);
+
+      const calls = mockModel.invoke.mock.calls[0];
+      const passedMessages = calls[0];
+      // 50 windowed messages (no system prompt since empty graphSettings)
+      expect(passedMessages).toHaveLength(50);
+    });
   });
 
+  describe("qualification fields in prompt", () => {
+    it("includes missing qualification fields in system prompt", async () => {
+      const state = makeState({ contactData: { crmId: "crm-1", name: "Ivan" } });
+      const config = makeConfig({
+        graphSettings: {
+          conversation: { systemPrompt: "You are a sales agent." },
+          qualification: {
+            qualificationFields: [
+              { name: "companyName", description: "Company name", required: true },
+              { name: "budget", description: "Budget range", required: false },
+            ],
+          },
+        },
+      });
+
+      await generateNode(state, config);
+
+      const systemMsg = mockModel.invoke.mock.calls[0][0][0];
+      expect(systemMsg.content).toContain("Still need to collect");
+      expect(systemMsg.content).toContain("companyName (required)");
+      expect(systemMsg.content).toContain("budget");
+    });
+
+    it("does not show collected fields in missing list", async () => {
+      const state = makeState({
+        contactData: { crmId: "crm-1", companyName: "Acme", budget: "50k" },
+      });
+      const config = makeConfig({
+        graphSettings: {
+          conversation: { systemPrompt: "You are a sales agent." },
+          qualification: {
+            qualificationFields: [
+              { name: "companyName", description: "Company name", required: true },
+              { name: "budget", description: "Budget range", required: false },
+              { name: "painPoints", description: "Main challenges", required: false },
+            ],
+          },
+        },
+      });
+
+      await generateNode(state, config);
+
+      const systemMsg = mockModel.invoke.mock.calls[0][0][0];
+      // companyName and budget already collected — should not be in "Still need to collect"
+      expect(systemMsg.content).not.toContain("companyName (required)");
+      expect(systemMsg.content).not.toContain("budget —");
+      // painPoints still missing
+      expect(systemMsg.content).toContain("painPoints");
+    });
+
+    it("omits qualification section when no fields configured", async () => {
+      const state = makeState();
+      const config = makeConfig({
+        graphSettings: {
+          conversation: { systemPrompt: "You are a sales agent." },
+          qualification: { qualificationFields: [] },
+        },
+      });
+
+      await generateNode(state, config);
+
+      const systemMsg = mockModel.invoke.mock.calls[0][0][0];
+      expect(systemMsg.content).not.toContain("Still need to collect");
+    });
+  });
+});
+
+describe("routeAfterInputSanitize", () => {
+  it("returns '__end__' when last message is AIMessage (blocked)", () => {
+    const state = makeState({
+      messages: [new HumanMessage("hi"), new AIMessage("Blocked")],
+    });
+    expect(routeAfterInputSanitize(state)).toBe("__end__");
+  });
+
+  it("returns 'generate' when last message is HumanMessage (passed)", () => {
+    const state = makeState({ messages: [new HumanMessage("hello")] });
+    expect(routeAfterInputSanitize(state)).toBe("generate");
+  });
+});
+
+describe("routeAfterGenerate", () => {
   it("returns 'exec_tools' when last message has tool calls", () => {
     const aiMsg = new AIMessage({ content: "", tool_calls: [] });
     (aiMsg as any).tool_calls = [{ id: "tc1", name: "some_tool", args: {} }];
     const state = makeState({ messages: [new HumanMessage("hi"), aiMsg] });
-    expect(shouldUseTools(state)).toBe("exec_tools");
+    expect(routeAfterGenerate(state)).toBe("exec_tools");
+  });
+
+  it("returns '__end__' when last message has no tool calls", () => {
+    const state = makeState({
+      messages: [new HumanMessage("hi"), new AIMessage({ content: "response", tool_calls: [] })],
+    });
+    expect(routeAfterGenerate(state)).toBe("__end__");
   });
 });

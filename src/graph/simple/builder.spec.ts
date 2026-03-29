@@ -11,6 +11,11 @@ jest.mock("langfuse-langchain", () => ({
   CallbackHandler: jest.fn().mockImplementation(() => ({ _type: "langfuse-callback" })),
 }));
 
+const mockMcpClient = {
+  getTools: jest.fn().mockResolvedValue([]),
+  executeTool: jest.fn(),
+};
+
 const mockModel: any = {
   invoke: jest.fn().mockResolvedValue({ content: "test response" }),
   withConfig: jest.fn(),
@@ -60,12 +65,12 @@ describe("SimpleGraphBuilder", () => {
 
   describe("metadata", () => {
     it("has correct graphType", () => {
-      const builder = new SimpleGraphBuilder(null, null);
+      const builder = new SimpleGraphBuilder(null, null, mockMcpClient as any);
       expect(builder.graphType).toBe("flutch.simple::1.0.0");
     });
 
     it("has correct version", () => {
-      const builder = new SimpleGraphBuilder(null, null);
+      const builder = new SimpleGraphBuilder(null, null, mockMcpClient as any);
       expect(builder.version).toBe("1.0.0");
     });
   });
@@ -74,7 +79,7 @@ describe("SimpleGraphBuilder", () => {
     let builder: SimpleGraphBuilder;
 
     beforeEach(() => {
-      builder = new SimpleGraphBuilder(null, null);
+      builder = new SimpleGraphBuilder(null, null, mockMcpClient as any);
     });
 
     it("builds a compiled graph", async () => {
@@ -109,7 +114,7 @@ describe("SimpleGraphBuilder", () => {
 
   describe("buildGraph — with checkpointer", () => {
     it("compiles graph with the injected checkpointer", async () => {
-      const builder = new SimpleGraphBuilder(mockCheckpointer, null);
+      const builder = new SimpleGraphBuilder(mockCheckpointer, null, mockMcpClient as any);
       await builder.buildGraph(basePayload);
       expect(compileSpy).toHaveBeenCalledWith({ checkpointer: mockCheckpointer });
     });
@@ -119,7 +124,7 @@ describe("SimpleGraphBuilder", () => {
     let builder: SimpleGraphBuilder;
 
     beforeEach(() => {
-      builder = new SimpleGraphBuilder(null, mockLangfuseService);
+      builder = new SimpleGraphBuilder(null, mockLangfuseService, mockMcpClient as any);
     });
 
     it("calls createCallbackHandler with context from payload", async () => {
@@ -155,7 +160,7 @@ describe("SimpleGraphBuilder", () => {
 
   describe("buildGraph — with LangFuse disabled", () => {
     it("does not bind callbacks when langfuse returns null handler", async () => {
-      const builder = new SimpleGraphBuilder(null, disabledLangfuseService);
+      const builder = new SimpleGraphBuilder(null, disabledLangfuseService, mockMcpClient as any);
       await builder.buildGraph(basePayload);
       expect(mockModel.withConfig).not.toHaveBeenCalled();
     });
@@ -163,7 +168,11 @@ describe("SimpleGraphBuilder", () => {
 
   describe("buildGraph — checkpointer + langfuse together", () => {
     it("passes both checkpointer and langfuse callback", async () => {
-      const builder = new SimpleGraphBuilder(mockCheckpointer, mockLangfuseService);
+      const builder = new SimpleGraphBuilder(
+        mockCheckpointer,
+        mockLangfuseService,
+        mockMcpClient as any
+      );
       await builder.buildGraph(basePayload);
       expect(compileSpy).toHaveBeenCalledWith({ checkpointer: mockCheckpointer });
       expect(mockModel.withConfig).toHaveBeenCalledWith({ callbacks: [mockLangfuseCallback] });
@@ -172,7 +181,7 @@ describe("SimpleGraphBuilder", () => {
 
   describe("buildGraph — systemPrompt handling", () => {
     it("builds graph when systemPrompt is provided", async () => {
-      const builder = new SimpleGraphBuilder(null, null);
+      const builder = new SimpleGraphBuilder(null, null, mockMcpClient as any);
       const graph = await builder.buildGraph({
         ...basePayload,
         config: {
@@ -189,7 +198,7 @@ describe("SimpleGraphBuilder", () => {
   describe("generateNode — graph invocation", () => {
     it("returns text from model response", async () => {
       const { HumanMessage } = await import("@langchain/core/messages");
-      const builder = new SimpleGraphBuilder(null, null);
+      const builder = new SimpleGraphBuilder(null, null, mockMcpClient as any);
       const graph = await builder.buildGraph(basePayload);
       const result = await graph.invoke({ messages: [new HumanMessage("hello")] });
       expect(result.text).toBe("test response");
@@ -197,7 +206,7 @@ describe("SimpleGraphBuilder", () => {
 
     it("prepends SystemMessage when systemPrompt is set", async () => {
       const { HumanMessage } = await import("@langchain/core/messages");
-      const builder = new SimpleGraphBuilder(null, null);
+      const builder = new SimpleGraphBuilder(null, null, mockMcpClient as any);
       const graph = await builder.buildGraph({
         ...basePayload,
         config: {

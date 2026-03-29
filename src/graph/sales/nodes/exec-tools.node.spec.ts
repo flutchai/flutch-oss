@@ -1,12 +1,34 @@
-import { execToolsNode } from "./exec-tools.node";
+import { SalesGraphBuilder } from "../builder";
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { SalesState } from "../sales.annotations";
 
 jest.mock("@flutchai/flutch-sdk", () => ({
-  McpRuntimeHttpClient: jest.fn(),
+  AbstractGraphBuilder: class {
+    constructor() {}
+  },
+  McpRuntimeHttpClient: jest.fn().mockImplementation(() => ({
+    getTools: jest.fn().mockResolvedValue([]),
+    executeTool: jest.fn(),
+  })),
+  ModelInitializer: jest.fn().mockImplementation(() => ({
+    initializeChatModel: jest.fn(),
+  })),
   executeToolWithAttachments: jest.fn(),
   IGraphAttachment: {},
 }));
+
+jest.mock("../../../modules/langfuse/langfuse.service", () => ({
+  LangfuseService: jest.fn(),
+}));
+
+const mockMcpClient = {
+  getTools: jest.fn().mockResolvedValue([]),
+  executeTool: jest.fn(),
+};
+
+const mockModelInitializer = {
+  initializeChatModel: jest.fn(),
+};
 
 type State = typeof SalesState.State;
 
@@ -16,6 +38,8 @@ function makeState(overrides: Partial<State> = {}): State {
     text: "",
     contactData: {},
     attachments: {},
+    enrichmentStatus: null,
+    requestMetadata: {},
     ...overrides,
   };
 }
@@ -28,13 +52,25 @@ function makeAIMessageWithTools(
   return msg;
 }
 
+function createBuilder(): SalesGraphBuilder {
+  return new SalesGraphBuilder(null, null, mockMcpClient as any, mockModelInitializer as any);
+}
+
+function getExecToolsNode(builder: SalesGraphBuilder) {
+  return (builder as any).execToolsNode.bind(builder);
+}
+
 describe("execToolsNode", () => {
   let executeToolWithAttachments: jest.Mock;
+  let builder: SalesGraphBuilder;
+  let execToolsNode: (state: State, config: any) => Promise<Partial<State>>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     const sdk = require("@flutchai/flutch-sdk");
     executeToolWithAttachments = sdk.executeToolWithAttachments as jest.Mock;
+    builder = createBuilder();
+    execToolsNode = getExecToolsNode(builder);
   });
 
   it("returns empty object when no tool calls in last message", async () => {
@@ -42,22 +78,6 @@ describe("execToolsNode", () => {
     const state = makeState({ messages: [new HumanMessage("hi"), lastMsg] });
     const result = await execToolsNode(state, { configurable: {} } as any);
     expect(result).toEqual({});
-  });
-
-  it("returns error ToolMessage when mcpClient is not in config", async () => {
-    const generation = makeAIMessageWithTools([
-      { id: "tc1", name: "kb_search", args: { query: "pricing" } },
-    ]);
-    const state = makeState({ messages: [new HumanMessage("hi"), generation] });
-    const config = { configurable: {} };
-
-    const result = await execToolsNode(state, config as any);
-
-    expect(result.messages).toHaveLength(1);
-    const msg = result.messages![0] as ToolMessage;
-    expect(msg).toBeInstanceOf(ToolMessage);
-    const content = JSON.parse(msg.content as string);
-    expect(content.error).toContain("kb_search");
   });
 
   it("executes tool calls via mcpClient and returns tool messages", async () => {
@@ -76,11 +96,13 @@ describe("execToolsNode", () => {
       { id: "tc1", name: "kb_search", args: { query: "pricing" } },
     ]);
     const state = makeState({ messages: [new HumanMessage("hi"), generation] });
-    const mockMcpClient = { executeTool: jest.fn() };
     const config = {
       configurable: {
-        mcpClient: mockMcpClient,
-        toolConfigs: { kb_search: { kbIds: ["kb-1"] } },
+        graphSettings: {
+          conversation: {
+            availableTools: [{ name: "kb_search", enabled: true, config: { kbIds: ["kb-1"] } }],
+          },
+        },
         context: { userId: "user-1", agentId: "agent-1" },
         thread_id: "thread-1",
       },
@@ -91,7 +113,6 @@ describe("execToolsNode", () => {
     expect(executeToolWithAttachments).toHaveBeenCalledWith(
       expect.objectContaining({
         toolCall: expect.objectContaining({ name: "kb_search" }),
-        mcpClient: mockMcpClient,
       })
     );
     expect(result.messages).toHaveLength(1);
@@ -103,9 +124,7 @@ describe("execToolsNode", () => {
 
     const generation = makeAIMessageWithTools([{ id: "tc1", name: "kb_search", args: {} }]);
     const state = makeState({ messages: [new HumanMessage("hi"), generation] });
-    const config = {
-      configurable: { mcpClient: {}, toolConfigs: {} },
-    };
+    const config = { configurable: {} };
 
     const result = await execToolsNode(state, config as any);
 
@@ -131,7 +150,7 @@ describe("execToolsNode", () => {
 
     const generation = makeAIMessageWithTools([{ id: "tc1", name: "pdf_tool", args: {} }]);
     const state = makeState({ messages: [new HumanMessage("hi"), generation] });
-    const config = { configurable: { mcpClient: {}, toolConfigs: {} } };
+    const config = { configurable: {} };
 
     const result = await execToolsNode(state, config as any);
 
@@ -157,8 +176,6 @@ describe("execToolsNode", () => {
     const state = makeState({ messages: [new HumanMessage("hi"), generation] });
     const config = {
       configurable: {
-        mcpClient: {},
-        toolConfigs: {},
         context: {
           userId: "user-123",
           agentId: "agent-456",

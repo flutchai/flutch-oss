@@ -17,7 +17,10 @@ import {
   BuilderRegistryService,
   UniversalGraphModule,
   GraphEngineType,
+  McpRuntimeHttpClient,
+  ModelInitializer,
 } from "@flutchai/flutch-sdk";
+import { createOssConfigFetcher } from "./graph/model-config-fetcher";
 
 const logger = new Logger("AppModule");
 
@@ -45,7 +48,7 @@ const logger = new Logger("AppModule");
           baseGraphType: "flutch.sales",
           versions: [
             {
-              version: "1.0.0",
+              version: "2.0.0",
               builderClass: SalesGraphBuilder,
               isDefault: true,
             },
@@ -66,6 +69,11 @@ const logger = new Logger("AppModule");
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
+    },
+    McpRuntimeHttpClient,
+    {
+      provide: ModelInitializer,
+      useFactory: () => new ModelInitializer(createOssConfigFetcher()),
     },
     SimpleGraphBuilder,
     SalesGraphBuilder,

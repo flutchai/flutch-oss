@@ -1,4 +1,4 @@
-import type { McpRuntimeHttpClient, ModelInitializer } from "@flutchai/flutch-sdk";
+import type { BaseGraphContext, IGraphConfigurable } from "@flutchai/flutch-sdk";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 
 // ── Graph State ──
@@ -10,52 +10,62 @@ export interface IContactData {
   [key: string]: any;
 }
 
-// ── Runtime Configurable (injected by builder into config.configurable) ──
+// ── Qualification Fields ──
 
-export interface ISalesConfigurable {
-  /** ModelInitializer for lazy model creation in generate node */
-  modelInitializer?: ModelInitializer;
-  /** MCP Runtime client for tool execution */
-  mcpClient?: McpRuntimeHttpClient;
-  /** Per-tool config from graphSettings */
-  toolConfigs?: Record<string, any>;
-  /** System prompt built from graphSettings */
-  systemPrompt?: string;
-  /** Langfuse callback handler (created by builder, applied by generate node) */
-  langfuseCallback?: any;
-  /** CRM config (merged from graphSettings + env provider) */
-  crmConfig?: ICrmRuntimeConfig;
-  /** Runtime context from caller (userId, agentId, threadId, etc.) */
-  context?: {
-    userId?: string;
-    agentId?: string;
-    threadId?: string;
-    messageId?: string;
-    platform?: string;
-    companyId?: string;
-    email?: string;
-    phone?: string;
-    [key: string]: any;
-  };
-  /** LangGraph thread ID */
-  thread_id?: string;
-  /** Graph settings from DB/payload */
-  graphSettings?: ISalesGraphSettings;
+export interface IQualificationField {
+  name: string;
+  description: string;
+  required: boolean;
+}
+
+// ── Runtime Config (LangGraph configurable — uses SDK types) ──
+
+/** Sales configurable — extends SDK's IGraphConfigurable */
+export interface ISalesConfigurable extends IGraphConfigurable<ISalesGraphSettings> {
+  context?: BaseGraphContext;
 }
 
 /** Typed config for sales graph nodes */
 export type SalesRunnableConfig = LangGraphRunnableConfig<ISalesConfigurable>;
 
-// ── Graph Config (from graphSettings) ──
+// ── Graph Settings (from DB/admin UI) ──
 
-export interface ISalesGraphSettings {
+export interface IConversationSettings {
   systemPrompt?: string;
   modelId?: string;
   temperature?: number;
   maxTokens?: number;
-  availableTools?: (string | ISalesToolConfig)[];
+  /** Number of recent messages to send to the LLM. Defaults to 50. */
+  messageWindowSize?: number;
   recursionLimit?: number;
-  crm?: ICrmConfig;
+  availableTools?: (string | ISalesToolConfig)[];
+}
+
+export interface ICrmSettings extends ICrmConfig {
+  /** MCP tools to run for enrichment on first message (async, fire-and-forget). */
+  enrichmentTools?: (string | ISalesToolConfig)[];
+}
+
+export interface IQualificationSettings {
+  /** Fields to collect from the customer. The AI collects them naturally, no fixed order. */
+  qualificationFields?: IQualificationField[];
+  /** Model ID for the cheap extraction model (extracts qualification data from conversation, writes to CRM). */
+  extractionModelId?: string;
+  /** CRM contact fields visible to the AI in the system prompt.
+   *  Only whitelisted fields are included — all others are hidden.
+   *  Defaults: name, firstName, lastName, company, companyName, industry, role, jobTitle */
+  contactFieldsWhitelist?: string[];
+}
+
+export interface ISafetySettings {
+  inputSanitization?: IGuardrailConfig;
+}
+
+export interface ISalesGraphSettings {
+  conversation?: IConversationSettings;
+  crm?: ICrmSettings;
+  qualification?: IQualificationSettings;
+  safety?: ISafetySettings;
 }
 
 export interface ISalesToolConfig {
@@ -64,7 +74,13 @@ export interface ISalesToolConfig {
   config?: Record<string, any>;
 }
 
-export type CrmProvider = "twenty" | "zoho";
+/** Input sanitization toggle + model. */
+export interface IGuardrailConfig {
+  enabled?: boolean;
+  modelId?: string;
+}
+
+export type CrmProvider = "twenty" | "zoho" | "jobber";
 
 /** CRM config from graphSettings (UI). */
 export interface ICrmConfig {
@@ -74,5 +90,16 @@ export interface ICrmConfig {
   lookupBy: "email" | "phone";
 }
 
-/** Runtime CRM config passed to nodes. Same as ICrmConfig — kept for clarity. */
-export type ICrmRuntimeConfig = ICrmConfig;
+// ── Utilities ──
+
+/** Extract per-tool config map from graphSettings.conversation.availableTools */
+export function extractToolConfigs(graphSettings?: ISalesGraphSettings): Record<string, any> {
+  const raw = graphSettings?.conversation?.availableTools ?? [];
+  const result: Record<string, any> = {};
+  for (const tool of raw) {
+    if (typeof tool !== "string" && tool?.name && tool.config) {
+      result[tool.name] = tool.config;
+    }
+  }
+  return result;
+}

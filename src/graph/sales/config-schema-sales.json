@@ -1,6 +1,66 @@
 {
   "type": "object",
   "properties": {
+    "conversation": {
+      "type": "object",
+      "title": "Conversation",
+      "properties": {
+        "modelId": {
+          "type": "modelSelector",
+          "title": "Model",
+          "params": {
+            "modelType": "chat",
+            "isActive": true
+          }
+        },
+        "temperature": {
+          "type": "number",
+          "title": "Temperature",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "maxTokens": {
+          "type": "integer",
+          "title": "Max Tokens",
+          "default": 2048,
+          "minimum": 100,
+          "maximum": 4000,
+          "description": "Maximum tokens in response"
+        },
+        "systemPrompt": {
+          "type": "string",
+          "title": "System Prompt",
+          "format": "textarea",
+          "default": "You are a consultative sales assistant. Help the customer understand their problem and guide them toward a solution through natural conversation."
+        },
+        "messageWindowSize": {
+          "type": "integer",
+          "title": "Message Window Size",
+          "description": "Number of recent messages sent to the LLM for context. Lower values reduce cost; higher values improve context awareness.",
+          "default": 50,
+          "minimum": 4,
+          "maximum": 200
+        },
+        "recursionLimit": {
+          "type": "integer",
+          "title": "Recursion Limit",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum number of graph iterations (tool call loops)"
+        },
+        "availableTools": {
+          "type": "toolSelector",
+          "title": "Available Tools",
+          "description": "Select which tools the agent can use during conversations",
+          "params": {
+            "isMulti": true,
+            "showDescriptions": true
+          }
+        }
+      }
+    },
     "crm": {
       "type": "object",
       "title": "CRM Integration",
@@ -10,7 +70,7 @@
           "type": "string",
           "title": "CRM Provider",
           "description": "Which CRM system to use for contact management",
-          "enum": ["twenty", "zoho"]
+          "enum": ["twenty", "zoho", "jobber"]
         },
         "lookupBy": {
           "type": "string",
@@ -18,53 +78,93 @@
           "description": "Which field to use for finding existing contacts",
           "default": "email",
           "enum": ["email", "phone"]
+        },
+        "enrichmentTools": {
+          "type": "toolSelector",
+          "title": "Enrichment Tools",
+          "description": "MCP tools to run for lead enrichment on the first message (async, fire-and-forget). E.g. clearbit_lookup, research_agent.",
+          "params": {
+            "isMulti": true,
+            "showDescriptions": true
+          }
         }
       }
     },
-    "systemPrompt": {
-      "type": "string",
-      "title": "System Prompt",
-      "format": "textarea",
-      "default": "You are a consultative sales assistant. Help the customer understand their problem and guide them toward a solution through natural conversation."
-    },
-    "modelId": {
-      "type": "modelSelector",
-      "title": "Model",
-      "params": {
-        "modelType": "chat",
-        "isActive": true
+    "qualification": {
+      "type": "object",
+      "title": "Qualification",
+      "properties": {
+        "qualificationFields": {
+          "type": "array",
+          "title": "Qualification Fields",
+          "description": "Fields to collect from the customer during conversation. The AI collects them naturally — no fixed order. Leave empty for free-form conversation.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "Field Name",
+                "description": "CRM field name (e.g. companyName, budget, painPoints)"
+              },
+              "description": {
+                "type": "string",
+                "title": "Description",
+                "description": "What this field represents — guides the AI on how to ask"
+              },
+              "required": {
+                "type": "boolean",
+                "title": "Required",
+                "default": false,
+                "description": "Whether this field must be collected"
+              }
+            },
+            "required": ["name", "description"]
+          }
+        },
+        "extractionModelId": {
+          "type": "modelSelector",
+          "title": "Extraction Model",
+          "description": "Cheap/fast model used to extract qualification data from conversation and sync to CRM. If not set, extraction is disabled.",
+          "params": {
+            "modelType": "chat",
+            "isActive": true
+          }
+        },
+        "contactFieldsWhitelist": {
+          "type": "array",
+          "title": "Contact Fields Whitelist",
+          "description": "CRM contact fields visible to the AI in the system prompt. Only whitelisted fields are shared — all others are hidden. Leave empty to use defaults (name, company, industry, role).",
+          "items": {
+            "type": "string"
+          },
+          "default": ["name", "firstName", "lastName", "company", "companyName", "industry", "role", "jobTitle"]
+        }
       }
     },
-    "temperature": {
-      "type": "number",
-      "title": "Temperature",
-      "default": 0.7,
-      "minimum": 0,
-      "maximum": 1
-    },
-    "maxTokens": {
-      "type": "integer",
-      "title": "Max Tokens",
-      "default": 2048,
-      "minimum": 100,
-      "maximum": 4000,
-      "description": "Maximum tokens in response"
-    },
-    "recursionLimit": {
-      "type": "integer",
-      "title": "Recursion Limit",
-      "default": 25,
-      "minimum": 1,
-      "maximum": 100,
-      "description": "Maximum number of graph iterations (tool call loops)"
-    },
-    "availableTools": {
-      "type": "toolSelector",
-      "title": "Available Tools",
-      "description": "Select which tools the agent can use during conversations",
-      "params": {
-        "isMulti": true,
-        "showDescriptions": true
+    "safety": {
+      "type": "object",
+      "title": "Safety",
+      "properties": {
+        "inputSanitization": {
+          "type": "object",
+          "title": "Input Sanitization",
+          "description": "Check user messages for prompt injection before LLM processing. Requires a moderation model from the catalog.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "title": "Enable Input Sanitization",
+              "default": false
+            },
+            "modelId": {
+              "type": "modelSelector",
+              "title": "Moderation Model",
+              "params": {
+                "modelType": "chat",
+                "isActive": true
+              }
+            }
+          }
+        }
       }
     }
   }
