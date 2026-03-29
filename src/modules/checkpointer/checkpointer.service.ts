@@ -15,7 +15,9 @@ export class CheckpointerService implements OnModuleInit {
     const ssl = this.configService.get<string>("POSTGRES_SSL") === "true"
       ? { rejectUnauthorized: false }
       : false;
-    const pool = new Pool({ connectionString: databaseUrl, ssl });
+    const url = new URL(databaseUrl);
+    url.searchParams.delete("sslmode");
+    const pool = new Pool({ connectionString: url.toString(), ssl });
     this.saver = new PostgresSaver(pool, undefined, { schema: "public" });
   }
 

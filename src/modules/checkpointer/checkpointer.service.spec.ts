@@ -15,10 +15,11 @@ jest.mock("pg", () => ({
 }));
 
 const DATABASE_URL = "postgresql://localhost:5432/test";
+const DATABASE_URL_WITH_SSLMODE = "postgresql://localhost:5432/test?sslmode=require";
 
-function makeConfigService(ssl?: string) {
+function makeConfigService(ssl?: string, url = DATABASE_URL) {
   return {
-    getOrThrow: jest.fn().mockReturnValue(DATABASE_URL),
+    getOrThrow: jest.fn().mockReturnValue(url),
     get: jest.fn().mockImplementation((key: string) => (key === "POSTGRES_SSL" ? ssl : undefined)),
   };
 }
@@ -61,6 +62,19 @@ describe("CheckpointerService", () => {
         connectionString: DATABASE_URL,
         ssl: { rejectUnauthorized: false },
       });
+    });
+
+    it("strips sslmode query param from DATABASE_URL", async () => {
+      jest.clearAllMocks();
+      const module = await Test.createTestingModule({
+        providers: [
+          CheckpointerService,
+          { provide: ConfigService, useValue: makeConfigService("true", DATABASE_URL_WITH_SSLMODE) },
+        ],
+      }).compile();
+      module.get<CheckpointerService>(CheckpointerService);
+      const [{ connectionString }] = (Pool as unknown as jest.Mock).mock.calls.at(-1);
+      expect(connectionString).not.toContain("sslmode");
     });
 
     it("creates PostgresSaver with pool and schema", () => {

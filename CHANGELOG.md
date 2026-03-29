@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.4
+
+### Fixed
+
+- **CheckpointerService** — strip `sslmode` query param from `DATABASE_URL` before passing to `pg.Pool`; managed databases (Railway, Supabase) often include `sslmode=require` in the URL which conflicts with the explicit `ssl` object, causing connection errors
+
 ## 0.7.3
 
 ### Fixed
