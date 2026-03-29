@@ -10,45 +10,19 @@ export interface IContactData {
   [key: string]: any;
 }
 
-// ── Qualification Steps ──
+// ── Qualification Fields ──
 
-export interface IStepField {
+export interface IQualificationField {
   name: string;
   description: string;
   required: boolean;
 }
 
-export interface IStepConfig {
-  id: string;
-  name: string;
-  prompt: string;
-  fields: IStepField[];
-  /** MCP tool names available in this step. Empty = no step-specific tools. */
-  tools: string[];
-}
-
-export type QualificationOutcome = "qualified" | "nurture" | "disqualified";
-
-export interface ILeadScore {
-  score: number;
-  outcome: QualificationOutcome;
-  reasons: string[];
-  scoredAt: string;
-}
-
-export type QualificationPreset = "b2b_bant" | "b2c_service" | "custom";
-
 // ── Runtime Config (LangGraph configurable — uses SDK types) ──
-
-/** Sales-specific context extends SDK's BaseGraphContext with lookup fields */
-export interface ISalesContext extends BaseGraphContext {
-  email?: string;
-  phone?: string;
-}
 
 /** Sales configurable — extends SDK's IGraphConfigurable */
 export interface ISalesConfigurable extends IGraphConfigurable<ISalesGraphSettings> {
-  context?: ISalesContext;
+  context?: BaseGraphContext;
 }
 
 /** Typed config for sales graph nodes */
@@ -56,31 +30,54 @@ export type SalesRunnableConfig = LangGraphRunnableConfig<ISalesConfigurable>;
 
 // ── Graph Settings (from DB/admin UI) ──
 
-export interface ISalesGraphSettings {
+export interface IConversationSettings {
   systemPrompt?: string;
   modelId?: string;
   temperature?: number;
   maxTokens?: number;
-  availableTools?: (string | ISalesToolConfig)[];
+  /** Number of recent messages to send to the LLM. Defaults to 50. */
+  messageWindowSize?: number;
   recursionLimit?: number;
-  crm?: ICrmConfig;
-  /** Qualification preset — determines default steps */
-  preset?: QualificationPreset;
-  /** Qualification steps (from preset or custom) */
-  steps?: IStepConfig[];
-  /** MCP tools to run for enrichment on first message (async, fire-and-forget).
-   *  Accepts same format as availableTools — string names or {name, enabled, config} objects. */
+  availableTools?: (string | ISalesToolConfig)[];
+}
+
+export interface ICrmSettings extends ICrmConfig {
+  /** MCP tools to run for enrichment on first message (async, fire-and-forget). */
   enrichmentTools?: (string | ISalesToolConfig)[];
-  /** Auto-handoff qualified leads (true) or wait for human approval (false) */
-  autoHandoff?: boolean;
-  /** Webhook URL for qualified lead handoff */
-  handoffWebhookUrl?: string;
+}
+
+export interface IQualificationSettings {
+  /** Fields to collect from the customer. The AI collects them naturally, no fixed order. */
+  qualificationFields?: IQualificationField[];
+  /** Model ID for the cheap extraction model (extracts qualification data from conversation, writes to CRM). */
+  extractionModelId?: string;
+  /** CRM contact fields visible to the AI in the system prompt.
+   *  Only whitelisted fields are included — all others are hidden.
+   *  Defaults: name, firstName, lastName, company, companyName, industry, role, jobTitle */
+  contactFieldsWhitelist?: string[];
+}
+
+export interface ISafetySettings {
+  inputSanitization?: IGuardrailConfig;
+}
+
+export interface ISalesGraphSettings {
+  conversation?: IConversationSettings;
+  crm?: ICrmSettings;
+  qualification?: IQualificationSettings;
+  safety?: ISafetySettings;
 }
 
 export interface ISalesToolConfig {
   name: string;
   enabled: boolean;
   config?: Record<string, any>;
+}
+
+/** Input sanitization toggle + model. */
+export interface IGuardrailConfig {
+  enabled?: boolean;
+  modelId?: string;
 }
 
 export type CrmProvider = "twenty" | "zoho" | "jobber";
@@ -95,9 +92,9 @@ export interface ICrmConfig {
 
 // ── Utilities ──
 
-/** Extract per-tool config map from graphSettings.availableTools */
+/** Extract per-tool config map from graphSettings.conversation.availableTools */
 export function extractToolConfigs(graphSettings?: ISalesGraphSettings): Record<string, any> {
-  const raw = graphSettings?.availableTools ?? [];
+  const raw = graphSettings?.conversation?.availableTools ?? [];
   const result: Record<string, any> = {};
   for (const tool of raw) {
     if (typeof tool !== "string" && tool?.name && tool.config) {

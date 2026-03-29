@@ -1,4 +1,8 @@
-import { SalesGraphBuilder, shouldUseTools } from "../builder";
+import {
+  SalesGraphBuilder,
+  routeAfterInputSanitize,
+  routeAfterGenerate,
+} from "../builder";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { SalesState } from "../sales.annotations";
 
@@ -45,11 +49,8 @@ function makeState(overrides: Partial<State> = {}): State {
     text: "",
     contactData: {},
     attachments: {},
-    currentStep: 0,
-    steps: [],
-    qualificationData: {},
-    leadScore: null,
     enrichmentStatus: null,
+    requestMetadata: {},
     ...overrides,
   };
 }
@@ -58,7 +59,10 @@ function makeConfig(overrides: Record<string, any> = {}) {
   const { graphSettings: gsOverride, ...rest } = overrides;
   return {
     configurable: {
-      graphSettings: { modelId: "gpt-4o-mini", ...gsOverride },
+      graphSettings: {
+        conversation: { modelId: "gpt-4o-mini" },
+        ...gsOverride,
+      },
       ...rest,
     },
   } as any;
@@ -85,7 +89,7 @@ describe("generateNode", () => {
     generateNode = getGenerateNode(builder);
   });
 
-  it("returns text and appends to messages (no steps)", async () => {
+  it("returns text and appends to messages", async () => {
     const state = makeState();
     const result = await generateNode(state, makeConfig());
 
@@ -97,10 +101,12 @@ describe("generateNode", () => {
     const state = makeState();
     const config = makeConfig({
       graphSettings: {
-        modelId: "claude-3-haiku",
-        temperature: 0.5,
-        maxTokens: 1024,
-        availableTools: [{ name: "kb_search", enabled: true }],
+        conversation: {
+          modelId: "claude-3-haiku",
+          temperature: 0.5,
+          maxTokens: 1024,
+          availableTools: [{ name: "kb_search", enabled: true }],
+        },
       },
     });
 
@@ -128,7 +134,7 @@ describe("generateNode", () => {
   it("prepends SystemMessage when systemPrompt is set", async () => {
     const { SystemMessage } = await import("@langchain/core/messages");
     const state = makeState();
-    const config = makeConfig({ graphSettings: { systemPrompt: "Be helpful." } });
+    const config = makeConfig({ graphSettings: { conversation: { systemPrompt: "Be helpful." } } });
 
     await generateNode(state, config);
 
@@ -140,7 +146,7 @@ describe("generateNode", () => {
 
   it("does not prepend SystemMessage when systemPrompt is empty", async () => {
     const state = makeState();
-    const config = makeConfig({ graphSettings: { systemPrompt: "" } });
+    const config = makeConfig({ graphSettings: { conversation: { systemPrompt: "" } } });
 
     await generateNode(state, config);
 
@@ -149,11 +155,11 @@ describe("generateNode", () => {
     expect(messages[0]).toBeInstanceOf(HumanMessage);
   });
 
-  it("appends contactData to system prompt", async () => {
+  it("appends whitelisted contactData to system prompt (defaults)", async () => {
     const state = makeState({
-      contactData: { crmId: "crm-1", name: "Ivan", email: "ivan@test.com" },
+      contactData: { crmId: "crm-1", name: "Ivan", email: "ivan@test.com", company: "Acme" },
     });
-    const config = makeConfig({ graphSettings: { systemPrompt: "You are a sales agent." } });
+    const config = makeConfig({ graphSettings: { conversation: { systemPrompt: "You are a sales agent." } } });
 
     await generateNode(state, config);
 
@@ -161,7 +167,31 @@ describe("generateNode", () => {
     const systemMsg = calls[0][0];
     expect(systemMsg.content).toContain("About the customer");
     expect(systemMsg.content).toContain("name: Ivan");
+    expect(systemMsg.content).toContain("company: Acme");
+    // email is NOT in default whitelist
+    expect(systemMsg.content).not.toContain("email");
+    expect(systemMsg.content).not.toContain("crmId");
+  });
+
+  it("uses custom contactFieldsWhitelist from config", async () => {
+    const state = makeState({
+      contactData: { crmId: "crm-1", name: "Ivan", email: "ivan@test.com", phone: "+123" },
+    });
+    const config = makeConfig({
+      graphSettings: {
+        conversation: { systemPrompt: "You are a sales agent." },
+        qualification: { contactFieldsWhitelist: ["email"] },
+      },
+    });
+
+    await generateNode(state, config);
+
+    const calls = mockModel.invoke.mock.calls[0];
+    const systemMsg = calls[0][0];
     expect(systemMsg.content).toContain("email: ivan@test.com");
+    // name and phone are NOT in custom whitelist
+    expect(systemMsg.content).not.toContain("name: Ivan");
+    expect(systemMsg.content).not.toContain("phone");
     expect(systemMsg.content).not.toContain("crmId");
   });
 
@@ -202,8 +232,10 @@ describe("generateNode", () => {
     const state = makeState();
     const config = makeConfig({
       graphSettings: {
-        modelId: "gpt-4o-mini",
-        availableTools: ["kb_search", "web_search"],
+        conversation: {
+          modelId: "gpt-4o-mini",
+          availableTools: ["kb_search", "web_search"],
+        },
       },
     });
 
@@ -219,150 +251,131 @@ describe("generateNode", () => {
     );
   });
 
-  describe("step-aware generation", () => {
-    const sampleSteps = [
-      {
-        id: "greeting",
-        name: "Greeting",
-        prompt: "Welcome the customer",
-        fields: [{ name: "reason", description: "Why they reached out", required: false }],
-        tools: [],
-      },
-      {
-        id: "company",
-        name: "Company",
-        prompt: "Gather company info",
-        fields: [{ name: "companyName", description: "Company name", required: true }],
-        tools: ["crm_search"],
-      },
-    ];
-
-    it("includes step prompt in system message", async () => {
-      const state = makeState({ steps: sampleSteps, currentStep: 0 });
-      const config = makeConfig({ graphSettings: { systemPrompt: "Base prompt." } });
-
-      await generateNode(state, config);
-
-      const systemMsg = mockModel.invoke.mock.calls[0][0][0];
-      expect(systemMsg.content).toContain("Current step: Greeting");
-      expect(systemMsg.content).toContain("Welcome the customer");
-    });
-
-    it("binds advance_step tool when in step mode", async () => {
-      const state = makeState({ steps: sampleSteps, currentStep: 0 });
-      const config = makeConfig();
-
-      await generateNode(state, config);
-
-      expect(mockModel.bindTools).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.objectContaining({ name: "advance_step" })]),
-        { parallel_tool_calls: false }
+  describe("message windowing", () => {
+    it("applies messageWindowSize to limit messages sent to model", async () => {
+      const msgs = Array.from({ length: 100 }, (_, i) =>
+        i % 2 === 0 ? new HumanMessage(`msg-${i}`) : new AIMessage(`reply-${i}`)
       );
-    });
-
-    it("does not bind advance_step when no steps", async () => {
-      const state = makeState({ steps: [], currentStep: 0 });
-      const config = makeConfig();
+      const state = makeState({ messages: msgs });
+      const config = makeConfig({ graphSettings: { conversation: { messageWindowSize: 10 } } });
 
       await generateNode(state, config);
 
-      expect(mockModel.bindTools).not.toHaveBeenCalled();
+      const calls = mockModel.invoke.mock.calls[0];
+      const passedMessages = calls[0];
+      // system prompt + 10 windowed messages
+      expect(passedMessages).toHaveLength(10);
     });
 
-    it("includes qualification progress in system prompt", async () => {
-      const state = makeState({
-        steps: sampleSteps,
-        currentStep: 1,
-        qualificationData: { greeting: { reason: "Looking for CRM" } },
-      });
-      const config = makeConfig({ graphSettings: { systemPrompt: "Base." } });
+    it("defaults to 50 messages when messageWindowSize not set", async () => {
+      const msgs = Array.from({ length: 60 }, (_, i) =>
+        i % 2 === 0 ? new HumanMessage(`msg-${i}`) : new AIMessage(`reply-${i}`)
+      );
+      const state = makeState({ messages: msgs });
+      const config = makeConfig({ graphSettings: {} });
 
       await generateNode(state, config);
 
-      const systemMsg = mockModel.invoke.mock.calls[0][0][0];
-      expect(systemMsg.content).toContain("Gathered so far");
-      expect(systemMsg.content).toContain("reason: Looking for CRM");
-      expect(systemMsg.content).toContain("Current step: Company (2/2)");
+      const calls = mockModel.invoke.mock.calls[0];
+      const passedMessages = calls[0];
+      // 50 windowed messages (no system prompt since empty graphSettings)
+      expect(passedMessages).toHaveLength(50);
     });
+  });
 
-    it("includes step-specific tools in toolsConfig", async () => {
-      const state = makeState({ steps: sampleSteps, currentStep: 1 });
+  describe("qualification fields in prompt", () => {
+    it("includes missing qualification fields in system prompt", async () => {
+      const state = makeState({ contactData: { crmId: "crm-1", name: "Ivan" } });
       const config = makeConfig({
         graphSettings: {
-          modelId: "gpt-4o-mini",
-          availableTools: ["kb_search"],
+          conversation: { systemPrompt: "You are a sales agent." },
+          qualification: {
+            qualificationFields: [
+              { name: "companyName", description: "Company name", required: true },
+              { name: "budget", description: "Budget range", required: false },
+            ],
+          },
         },
       });
 
       await generateNode(state, config);
 
-      expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith(
-        expect.objectContaining({
-          toolsConfig: expect.arrayContaining([
-            { toolName: "kb_search", enabled: true },
-            { toolName: "crm_search", enabled: true },
-          ]),
-        })
-      );
+      const systemMsg = mockModel.invoke.mock.calls[0][0][0];
+      expect(systemMsg.content).toContain("Still need to collect");
+      expect(systemMsg.content).toContain("companyName (required)");
+      expect(systemMsg.content).toContain("budget");
     });
-  });
 
-  describe("scoring (all steps completed)", () => {
-    const sampleSteps = [
-      {
-        id: "greeting",
-        name: "Greeting",
-        prompt: "Welcome",
-        fields: [],
-        tools: [],
-      },
-    ];
-
-    it("triggers scoring when currentStep >= steps.length", async () => {
-      const scoringResponse = { score: 85, outcome: "qualified", reasons: ["Good fit"] };
-      const closingAiMsg = new AIMessage({ content: "Thank you!", tool_calls: [] });
-
-      mockModelInitializer.initializeChatModel
-        .mockResolvedValueOnce({
-          invoke: jest.fn().mockResolvedValue(scoringResponse),
-          withStructuredOutput: jest.fn().mockReturnValue({
-            invoke: jest.fn().mockResolvedValue(scoringResponse),
-          }),
-          withConfig: jest.fn().mockReturnThis(),
-        })
-        .mockResolvedValueOnce({
-          invoke: jest.fn().mockResolvedValue(closingAiMsg),
-          withConfig: jest.fn().mockReturnThis(),
-        });
-
+    it("does not show collected fields in missing list", async () => {
       const state = makeState({
-        steps: sampleSteps,
-        currentStep: 1,
-        qualificationData: { greeting: { reason: "Need CRM" } },
-        contactData: { name: "Test User" },
+        contactData: { crmId: "crm-1", companyName: "Acme", budget: "50k" },
       });
-      const config = makeConfig();
+      const config = makeConfig({
+        graphSettings: {
+          conversation: { systemPrompt: "You are a sales agent." },
+          qualification: {
+            qualificationFields: [
+              { name: "companyName", description: "Company name", required: true },
+              { name: "budget", description: "Budget range", required: false },
+              { name: "painPoints", description: "Main challenges", required: false },
+            ],
+          },
+        },
+      });
 
-      const result = await generateNode(state, config);
+      await generateNode(state, config);
 
-      expect(result.leadScore).toBeDefined();
-      expect(result.leadScore!.score).toBe(85);
-      expect(result.leadScore!.outcome).toBe("qualified");
+      const systemMsg = mockModel.invoke.mock.calls[0][0][0];
+      // companyName and budget already collected — should not be in "Still need to collect"
+      expect(systemMsg.content).not.toContain("companyName (required)");
+      expect(systemMsg.content).not.toContain("budget —");
+      // painPoints still missing
+      expect(systemMsg.content).toContain("painPoints");
+    });
+
+    it("omits qualification section when no fields configured", async () => {
+      const state = makeState();
+      const config = makeConfig({
+        graphSettings: {
+          conversation: { systemPrompt: "You are a sales agent." },
+          qualification: { qualificationFields: [] },
+        },
+      });
+
+      await generateNode(state, config);
+
+      const systemMsg = mockModel.invoke.mock.calls[0][0][0];
+      expect(systemMsg.content).not.toContain("Still need to collect");
     });
   });
 });
 
-describe("shouldUseTools", () => {
-  it("returns '__end__' when last message has no tool calls", () => {
-    const lastMsg = new AIMessage({ content: "response", tool_calls: [] });
-    const state = makeState({ messages: [new HumanMessage("hi"), lastMsg] });
-    expect(shouldUseTools(state)).toBe("__end__");
+describe("routeAfterInputSanitize", () => {
+  it("returns '__end__' when last message is AIMessage (blocked)", () => {
+    const state = makeState({
+      messages: [new HumanMessage("hi"), new AIMessage("Blocked")],
+    });
+    expect(routeAfterInputSanitize(state)).toBe("__end__");
   });
 
+  it("returns 'generate' when last message is HumanMessage (passed)", () => {
+    const state = makeState({ messages: [new HumanMessage("hello")] });
+    expect(routeAfterInputSanitize(state)).toBe("generate");
+  });
+});
+
+describe("routeAfterGenerate", () => {
   it("returns 'exec_tools' when last message has tool calls", () => {
     const aiMsg = new AIMessage({ content: "", tool_calls: [] });
     (aiMsg as any).tool_calls = [{ id: "tc1", name: "some_tool", args: {} }];
     const state = makeState({ messages: [new HumanMessage("hi"), aiMsg] });
-    expect(shouldUseTools(state)).toBe("exec_tools");
+    expect(routeAfterGenerate(state)).toBe("exec_tools");
+  });
+
+  it("returns '__end__' when last message has no tool calls", () => {
+    const state = makeState({
+      messages: [new HumanMessage("hi"), new AIMessage({ content: "response", tool_calls: [] })],
+    });
+    expect(routeAfterGenerate(state)).toBe("__end__");
   });
 });

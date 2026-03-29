@@ -54,10 +54,12 @@ const basePayload = {
       thread_id: "thread-123",
       context: { userId: "user-1", agentId: "sales-agent", companyId: "co-1" },
       graphSettings: {
-        modelId: "gpt-4o-mini",
-        temperature: 0.7,
-        systemPrompt: "You are a sales agent.",
-        availableTools: [],
+        conversation: {
+          modelId: "gpt-4o-mini",
+          temperature: 0.7,
+          systemPrompt: "You are a sales agent.",
+          availableTools: [],
+        },
       },
     },
   },
@@ -170,19 +172,21 @@ describe("SalesGraphBuilder", () => {
   });
 
   describe("buildGraph — settings", () => {
-    it("builds graph with availableTools in graphSettings", async () => {
+    it("builds graph with availableTools in conversation", async () => {
       const payloadWithToolConfig = {
         ...basePayload,
         config: {
           configurable: {
             ...basePayload.config.configurable,
             graphSettings: {
-              ...basePayload.config.configurable.graphSettings,
-              availableTools: [
-                { name: "kb_search", enabled: true, config: { kbIds: ["kb-1"] } },
-                { name: "disabled_tool", enabled: false },
-                "simple_tool",
-              ],
+              conversation: {
+                ...basePayload.config.configurable.graphSettings.conversation,
+                availableTools: [
+                  { name: "kb_search", enabled: true, config: { kbIds: ["kb-1"] } },
+                  { name: "disabled_tool", enabled: false },
+                  "simple_tool",
+                ],
+              },
             },
           },
         },
@@ -198,7 +202,7 @@ describe("SalesGraphBuilder", () => {
       expect(graph).toBeDefined();
     });
 
-    it("builds graph with crm config in graphSettings", async () => {
+    it("builds graph with crm config", async () => {
       const payloadWithCrm = {
         ...basePayload,
         config: {
@@ -223,16 +227,21 @@ describe("SalesGraphBuilder", () => {
     });
   });
 
-  describe("buildGraph — presets", () => {
-    it("resolves b2b_bant preset steps", async () => {
-      const payloadWithPreset = {
+  describe("buildGraph — qualificationFields", () => {
+    it("builds graph with qualificationFields", async () => {
+      const payloadWithFields = {
         ...basePayload,
         config: {
           configurable: {
             ...basePayload.config.configurable,
             graphSettings: {
               ...basePayload.config.configurable.graphSettings,
-              preset: "b2b_bant",
+              qualification: {
+                qualificationFields: [
+                  { name: "companyName", description: "Company name", required: true },
+                  { name: "budget", description: "Budget range", required: false },
+                ],
+              },
             },
           },
         },
@@ -244,19 +253,24 @@ describe("SalesGraphBuilder", () => {
         mockMcpClient as any,
         mockModelInitializer as any
       );
-      const graph = await builder.buildGraph(payloadWithPreset);
+      const graph = await builder.buildGraph(payloadWithFields);
       expect(graph).toBeDefined();
     });
 
-    it("resolves b2c_service preset steps", async () => {
-      const payloadWithPreset = {
+    it("builds graph with extractionModelId and messageWindowSize", async () => {
+      const payloadWithExtraction = {
         ...basePayload,
         config: {
           configurable: {
             ...basePayload.config.configurable,
             graphSettings: {
-              ...basePayload.config.configurable.graphSettings,
-              preset: "b2c_service",
+              conversation: {
+                ...basePayload.config.configurable.graphSettings.conversation,
+                messageWindowSize: 20,
+              },
+              qualification: {
+                extractionModelId: "gpt-4o-mini",
+              },
             },
           },
         },
@@ -268,57 +282,8 @@ describe("SalesGraphBuilder", () => {
         mockMcpClient as any,
         mockModelInitializer as any
       );
-      const graph = await builder.buildGraph(payloadWithPreset);
+      const graph = await builder.buildGraph(payloadWithExtraction);
       expect(graph).toBeDefined();
-    });
-
-    it("uses custom steps when provided (overrides preset)", async () => {
-      const customSteps = [
-        {
-          id: "custom1",
-          name: "Custom Step",
-          prompt: "Do something custom",
-          fields: [{ name: "field1", description: "A field", required: true }],
-          tools: [],
-        },
-      ];
-
-      const payloadWithCustom = {
-        ...basePayload,
-        config: {
-          configurable: {
-            ...basePayload.config.configurable,
-            graphSettings: {
-              ...basePayload.config.configurable.graphSettings,
-              preset: "b2b_bant",
-              steps: customSteps,
-            },
-          },
-        },
-      };
-
-      const builder = new SalesGraphBuilder(
-        null,
-        null,
-        mockMcpClient as any,
-        mockModelInitializer as any
-      );
-      const graph = await builder.buildGraph(payloadWithCustom);
-      expect(graph).toBeDefined();
-    });
-  });
-
-  describe("buildGraph — invoke/stream wrapper", () => {
-    it("compiled graph has invoke and stream functions", async () => {
-      const builder = new SalesGraphBuilder(
-        null,
-        null,
-        mockMcpClient as any,
-        mockModelInitializer as any
-      );
-      const graph = await builder.buildGraph(basePayload);
-      expect(typeof graph.invoke).toBe("function");
-      expect(typeof graph.stream).toBe("function");
     });
   });
 });
