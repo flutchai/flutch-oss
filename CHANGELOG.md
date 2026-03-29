@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.3
+
+### Fixed
+
+- **CheckpointerService SSL** — `PostgresSaver` now uses an explicit `pg.Pool` with `POSTGRES_SSL=true` support (`rejectUnauthorized: false`); previously `fromConnString` created an internal pool with no SSL, causing connection failures on managed PostgreSQL (Railway, RDS, Supabase)
+
+## 0.7.2
+
+### Fixed
+
+- **Standalone mode model routing** — `ModelFactory` and `ModelConfigFetcher` no longer override provider base URLs when `FLUTCH_API_TOKEN` is not set; LangChain now hits native provider APIs (`api.openai.com`, `api.anthropic.com`, `api.mistral.ai`) directly in standalone deployments instead of always routing to the Flutch Gateway
+- **KmsModule PostgreSQL SSL** — `POSTGRES_SSL=true` support added to `KmsModule` pool configuration (same pattern as `CheckpointerService`)
+
 ## 0.7.1
 
 ### Added
