@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0-alpha.4
+
+### Dependencies
+
+- Upgrade `@flutchai/flutch-sdk` to `0.2.14`
+- Add peer dependencies now required by SDK: `prom-client`, `mongoose`, `@nestjs/mongoose`, `@nestjs/terminus`, `@willsoto/nestjs-prometheus`
+
 ## 0.7.0-alpha.3
 
 ### Breaking Changes
