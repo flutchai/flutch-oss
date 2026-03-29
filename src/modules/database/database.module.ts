@@ -21,6 +21,7 @@ import { Article } from "../kms/entities/article.entity";
         username: config.getOrThrow<string>("POSTGRES_USER"),
         password: config.getOrThrow<string>("POSTGRES_PASSWORD"),
         database: config.getOrThrow<string>("POSTGRES_DB"),
+        ssl: config.get<string>("POSTGRES_SSL") === "true" ? { rejectUnauthorized: false } : false,
         entities: [User, UserIdentity, Thread, Message, AdminUser, KnowledgeBase, Article],
         migrations: [__dirname + "/../../migrations/*.{ts,js}"],
         migrationsRun: true,
