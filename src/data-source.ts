@@ -31,6 +31,7 @@ export const AppDataSource = new DataSource({
   username: requireEnv("POSTGRES_USER"),
   password: requireEnv("POSTGRES_PASSWORD"),
   database: requireEnv("POSTGRES_DB"),
+  ssl: process.env.POSTGRES_SSL === "true" ? { rejectUnauthorized: false } : false,
   entities: [User, UserIdentity, Thread, Message, AdminUser, KnowledgeBase, Article],
   migrations: ["src/migrations/*.ts"],
   synchronize: false,
