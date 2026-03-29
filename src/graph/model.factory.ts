@@ -5,6 +5,8 @@ import { Logger } from "@nestjs/common";
 
 const logger = new Logger("ModelFactory");
 
+const DEFAULT_ROUTER_URL = "https://router.flutch.ai";
+
 export interface ModelSettings {
   model: string;
   provider?: "openai" | "anthropic";
@@ -13,15 +15,18 @@ export interface ModelSettings {
 }
 
 /**
- * Creates a LangChain chat model directly from graphSettings.
- * No platform dependency — uses env API keys.
+ * Creates a LangChain chat model.
+ * Requests are routed through the Flutch gateway by default (https://router.flutch.ai).
+ * Override via FLUTCH_ROUTER_URL env var, or set to the provider's native URL to bypass the gateway.
+ * API keys are read from OPENAI_API_KEY / ANTHROPIC_API_KEY as usual.
  */
 export function createModel(settings: ModelSettings): BaseChatModel {
   const provider = settings.provider ?? inferProvider(settings.model);
   const temperature = settings.temperature ?? 0.7;
   const maxTokens = settings.maxTokens ?? 2048;
+  const routerURL = process.env.FLUTCH_ROUTER_URL ?? DEFAULT_ROUTER_URL;
 
-  logger.debug(`Creating model: provider=${provider} model=${settings.model}`);
+  logger.debug(`Creating model: provider=${provider} model=${settings.model} router=${routerURL}`);
 
   switch (provider) {
     case "anthropic":
@@ -29,7 +34,7 @@ export function createModel(settings: ModelSettings): BaseChatModel {
         modelName: settings.model,
         temperature,
         maxTokens,
-        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+        anthropicApiUrl: routerURL,
         streaming: true,
       }) as unknown as BaseChatModel;
 
@@ -39,7 +44,7 @@ export function createModel(settings: ModelSettings): BaseChatModel {
         modelName: settings.model,
         temperature,
         maxTokens,
-        openAIApiKey: process.env.OPENAI_API_KEY,
+        configuration: { baseURL: `${routerURL}/v1` },
         streaming: true,
       });
   }
