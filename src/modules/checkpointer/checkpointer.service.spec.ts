@@ -2,44 +2,71 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { CheckpointerService } from "./checkpointer.service";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+import { Pool } from "pg";
+
+const mockSaver = { setup: jest.fn().mockResolvedValue(undefined) };
 
 jest.mock("@langchain/langgraph-checkpoint-postgres", () => ({
-  PostgresSaver: {
-    fromConnString: jest.fn(),
-  },
+  PostgresSaver: jest.fn().mockImplementation(() => mockSaver),
 }));
 
-const mockSaver = {
-  setup: jest.fn().mockResolvedValue(undefined),
-};
+jest.mock("pg", () => ({
+  Pool: jest.fn().mockImplementation(() => ({ end: jest.fn() })),
+}));
+
+const DATABASE_URL = "postgresql://localhost:5432/test";
+
+function makeConfigService(ssl?: string) {
+  return {
+    getOrThrow: jest.fn().mockReturnValue(DATABASE_URL),
+    get: jest.fn().mockImplementation((key: string) => (key === "POSTGRES_SSL" ? ssl : undefined)),
+  };
+}
 
 describe("CheckpointerService", () => {
   let service: CheckpointerService;
 
   beforeEach(async () => {
-    (PostgresSaver.fromConnString as jest.Mock).mockReturnValue(mockSaver);
+    jest.clearAllMocks();
+    (mockSaver.setup as jest.Mock).mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CheckpointerService,
-        {
-          provide: ConfigService,
-          useValue: {
-            getOrThrow: jest.fn().mockReturnValue("postgresql://localhost:5432/test"),
-          },
-        },
+        { provide: ConfigService, useValue: makeConfigService() },
       ],
     }).compile();
 
     service = module.get<CheckpointerService>(CheckpointerService);
   });
 
-  afterEach(() => jest.clearAllMocks());
-
   describe("constructor", () => {
-    it("creates PostgresSaver from DATABASE_URL", () => {
-      expect(PostgresSaver.fromConnString).toHaveBeenCalledWith(
-        "postgresql://localhost:5432/test",
+    it("creates Pool from DATABASE_URL without SSL by default", () => {
+      expect(Pool).toHaveBeenCalledWith({
+        connectionString: DATABASE_URL,
+        ssl: false,
+      });
+    });
+
+    it("creates Pool with SSL when POSTGRES_SSL=true", async () => {
+      jest.clearAllMocks();
+      const module = await Test.createTestingModule({
+        providers: [
+          CheckpointerService,
+          { provide: ConfigService, useValue: makeConfigService("true") },
+        ],
+      }).compile();
+      module.get<CheckpointerService>(CheckpointerService);
+      expect(Pool).toHaveBeenCalledWith({
+        connectionString: DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+      });
+    });
+
+    it("creates PostgresSaver with pool and schema", () => {
+      expect(PostgresSaver).toHaveBeenCalledWith(
+        expect.anything(),
+        undefined,
         { schema: "public" }
       );
     });
@@ -64,13 +91,13 @@ describe("CheckpointerService", () => {
 
   describe("error handling", () => {
     it("throws if DATABASE_URL is not configured", () => {
-      (PostgresSaver.fromConnString as jest.Mock).mockClear();
       expect(
         () =>
           new CheckpointerService({
             getOrThrow: jest.fn().mockImplementation(() => {
               throw new Error("DATABASE_URL is not defined");
             }),
+            get: jest.fn(),
           } as any)
       ).toThrow("DATABASE_URL is not defined");
     });

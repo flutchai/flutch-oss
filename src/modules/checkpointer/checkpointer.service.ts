@@ -16,7 +16,7 @@ export class CheckpointerService implements OnModuleInit {
       ? { rejectUnauthorized: false }
       : false;
     const pool = new Pool({ connectionString: databaseUrl, ssl });
-    this.saver = new PostgresSaver(pool, { schema: "public" });
+    this.saver = new PostgresSaver(pool, undefined, { schema: "public" });
   }
 
   async onModuleInit(): Promise<void> {
