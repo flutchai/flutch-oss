@@ -105,6 +105,7 @@ describe("crm.constants", () => {
 
     it("returns correct tool names for zoho", () => {
       expect(getCrmToolName("zoho", "find")).toBe("zoho_search_contacts");
+      expect(getCrmToolName("zoho", "get")).toBe("zoho_get_contact");
       expect(getCrmToolName("zoho", "create")).toBe("zoho_create_contact");
       expect(getCrmToolName("zoho", "update")).toBe("zoho_update_contact");
       expect(getCrmToolName("zoho", "upsert")).toBe("zoho_upsert_contact");
@@ -147,17 +148,17 @@ describe("crm.constants", () => {
       expect(parseMcpResult(obj)).toBe(obj);
     });
 
-    it("parses JSON object from text", () => {
-      const text = '✅ Created person: Test\n\n{"id": "abc", "name": "Test"}';
-      expect(parseMcpResult(text)).toEqual({ id: "abc", name: "Test" });
+    it("parses JSON string to object", () => {
+      const json = '{"id": "abc", "name": "Test"}';
+      expect(parseMcpResult(json)).toEqual({ id: "abc", name: "Test" });
     });
 
-    it("parses JSON array from text", () => {
-      const text = 'Found 2 people\n\n[{"id": "1"}, {"id": "2"}]';
-      expect(parseMcpResult(text)).toEqual([{ id: "1" }, { id: "2" }]);
+    it("parses JSON array string", () => {
+      const json = '[{"id": "1"}, {"id": "2"}]';
+      expect(parseMcpResult(json)).toEqual([{ id: "1" }, { id: "2" }]);
     });
 
-    it("returns string as-is when no JSON found", () => {
+    it("returns non-JSON string as-is", () => {
       expect(parseMcpResult("No results")).toBe("No results");
     });
   });

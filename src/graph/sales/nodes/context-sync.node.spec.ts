@@ -24,6 +24,14 @@ jest.mock("@flutchai/flutch-sdk", () => ({
   ModelInitializer: jest.fn().mockImplementation(() => mockModelInitializer),
   executeToolWithAttachments: jest.fn(),
   IGraphAttachment: {},
+  ModelProvider: {
+    OPENAI: "openai",
+    ANTHROPIC: "anthropic",
+    MISTRAL: "mistral",
+    AWS: "aws",
+    COHERE: "cohere",
+    VOYAGEAI: "voyageai",
+  },
 }));
 
 jest.mock("../../../modules/langfuse/langfuse.service", () => ({
@@ -48,7 +56,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
   return {
     configurable: {
       graphSettings: {
-        crm: { provider: "twenty", lookupBy: "email" },
+        crm: { lookupBy: "email", twenty: { enabled: true } },
         ...overrides.graphSettings,
       },
       context: { email: "test@example.com", ...overrides.context },
@@ -154,15 +162,19 @@ describe("contextSyncNode", () => {
       });
 
       const state = makeState({
-        messages: [new HumanMessage("hi"), new AIMessage("hello"), new HumanMessage("my company is Acme")],
+        messages: [
+          new HumanMessage("hi"),
+          new AIMessage("hello"),
+          new HumanMessage("my company is Acme"),
+        ],
         contactData: { crmId: "crm-1" },
       });
 
       const config = makeConfig({
         graphSettings: {
-          crm: { provider: "twenty", lookupBy: "email" },
+          crm: { lookupBy: "email", twenty: { enabled: true } },
           qualification: {
-            extractionModelId: "gpt-4o-mini",
+            extractionModel: { provider: "openai", modelName: "gpt-4o-mini" },
             qualificationFields: [
               { name: "companyName", description: "Company name", required: true },
             ],
@@ -174,7 +186,8 @@ describe("contextSyncNode", () => {
 
       // Extraction is fire-and-forget, so we verify the model was initialized for extraction
       expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith({
-        modelId: "gpt-4o-mini",
+        provider: "openai",
+        modelName: "gpt-4o-mini",
         temperature: 0,
       });
     });
@@ -192,9 +205,9 @@ describe("contextSyncNode", () => {
 
       const config = makeConfig({
         graphSettings: {
-          crm: { provider: "twenty", lookupBy: "email" },
+          crm: { lookupBy: "email", twenty: { enabled: true } },
           qualification: {
-            extractionModelId: "gpt-4o-mini",
+            extractionModel: { provider: "openai", modelName: "gpt-4o-mini" },
             qualificationFields: [
               { name: "companyName", description: "Company name", required: true },
             ],
@@ -208,7 +221,70 @@ describe("contextSyncNode", () => {
       expect(mockModelInitializer.initializeChatModel).not.toHaveBeenCalled();
     });
 
-    it("skips extraction when extractionModelId is not set", async () => {
+    it("skips extraction when no crmId in contactData", async () => {
+      mockMcpClient.executeTool.mockResolvedValue({
+        success: false,
+        result: null,
+      });
+
+      const state = makeState({
+        messages: [
+          new HumanMessage("hi"),
+          new AIMessage("hello"),
+          new HumanMessage("my company is Acme"),
+        ],
+        contactData: {}, // no crmId
+      });
+
+      const config = makeConfig({
+        graphSettings: {
+          crm: { lookupBy: "email", twenty: { enabled: true } },
+          qualification: {
+            extractionModel: { provider: "openai", modelName: "gpt-4o-mini" },
+            qualificationFields: [
+              { name: "companyName", description: "Company name", required: true },
+            ],
+          },
+        },
+      });
+
+      await contextSyncNode(state, config);
+
+      // No crmId → extraction should NOT fire (no LLM call wasted)
+      expect(mockModelInitializer.initializeChatModel).not.toHaveBeenCalled();
+    });
+
+    it("skips extraction when all qualification fields are already collected", async () => {
+      mockMcpClient.executeTool.mockResolvedValue({
+        success: true,
+        result: JSON.stringify({ id: "crm-1", name: "Test", companyName: "Acme" }),
+      });
+
+      const state = makeState({
+        messages: [new HumanMessage("hi"), new AIMessage("hello"), new HumanMessage("msg")],
+        contactData: { crmId: "crm-1", companyName: "Acme", budget: "50k" },
+      });
+
+      const config = makeConfig({
+        graphSettings: {
+          crm: { lookupBy: "email", twenty: { enabled: true } },
+          qualification: {
+            extractionModel: { provider: "openai", modelName: "gpt-4o-mini" },
+            qualificationFields: [
+              { name: "companyName", description: "Company name", required: true },
+              { name: "budget", description: "Budget range", required: false },
+            ],
+          },
+        },
+      });
+
+      await contextSyncNode(state, config);
+
+      // All fields already collected → no extraction needed
+      expect(mockModelInitializer.initializeChatModel).not.toHaveBeenCalled();
+    });
+
+    it("skips extraction when extractionModel is not set", async () => {
       mockMcpClient.executeTool.mockResolvedValue({
         success: true,
         result: JSON.stringify({ id: "crm-1", name: "Test" }),
@@ -221,7 +297,7 @@ describe("contextSyncNode", () => {
 
       const config = makeConfig({
         graphSettings: {
-          crm: { provider: "twenty", lookupBy: "email" },
+          crm: { lookupBy: "email", twenty: { enabled: true } },
           qualification: {
             qualificationFields: [
               { name: "companyName", description: "Company name", required: true },
@@ -232,7 +308,7 @@ describe("contextSyncNode", () => {
 
       await contextSyncNode(state, config);
 
-      // No extractionModelId → no extraction model initialized
+      // No extractionModel → no extraction model initialized
       expect(mockModelInitializer.initializeChatModel).not.toHaveBeenCalled();
     });
 
@@ -252,9 +328,9 @@ describe("contextSyncNode", () => {
 
       const config = makeConfig({
         graphSettings: {
-          crm: { provider: "twenty", lookupBy: "email" },
+          crm: { lookupBy: "email", twenty: { enabled: true } },
           qualification: {
-            extractionModelId: "gpt-4o-mini",
+            extractionModel: { provider: "openai", modelName: "gpt-4o-mini" },
             qualificationFields: [
               { name: "companyName", description: "Company name", required: true },
             ],
@@ -269,7 +345,7 @@ describe("contextSyncNode", () => {
   });
 
   describe("enrichment", () => {
-    it("fires enrichment tools on first turn (enrichmentStatus = null)", async () => {
+    it("fires enrichment agent on first turn (enrichmentStatus = null)", async () => {
       mockMcpClient.executeTool.mockResolvedValue({ success: true, result: "{}" });
 
       const state = makeState({
@@ -279,13 +355,43 @@ describe("contextSyncNode", () => {
 
       const config = makeConfig({
         graphSettings: {
-          crm: { provider: "twenty", lookupBy: "email", enrichmentTools: ["clearbit_lookup", { name: "research_agent", enabled: true }] },
+          crm: { lookupBy: "email", twenty: { enabled: true }, enrichmentAgent: "agent-123" },
         },
       });
 
       const result = await contextSyncNode(state, config);
 
       expect(result.enrichmentStatus).toBe("requested");
+      // call_agent should be called with enrichment agent ID and query
+      expect(mockMcpClient.executeTool).toHaveBeenCalledWith(
+        "call_agent",
+        expect.objectContaining({ agentSlug: "agent-123" }),
+        expect.any(Object)
+      );
+    });
+
+    it("passes contact data in enrichment query", async () => {
+      mockMcpClient.executeTool.mockResolvedValue({ success: true, result: "{}" });
+
+      const state = makeState({
+        enrichmentStatus: null,
+        contactData: { email: "test@example.com", name: "John" },
+      });
+
+      const config = makeConfig({
+        graphSettings: {
+          crm: { lookupBy: "email", twenty: { enabled: true }, enrichmentAgent: "agent-123" },
+        },
+      });
+
+      await contextSyncNode(state, config);
+
+      const callArgs = mockMcpClient.executeTool.mock.calls.find(
+        (c: any[]) => c[0] === "call_agent"
+      );
+      expect(callArgs).toBeDefined();
+      expect(callArgs![1].query).toContain("email: test@example.com");
+      expect(callArgs![1].query).toContain("name: John");
     });
 
     it("skips enrichment when enrichmentStatus is already set", async () => {
@@ -294,7 +400,7 @@ describe("contextSyncNode", () => {
       const state = makeState({ enrichmentStatus: "requested" });
       const config = makeConfig({
         graphSettings: {
-          crm: { provider: "twenty", lookupBy: "email", enrichmentTools: [{ name: "clearbit_lookup", enabled: true }] },
+          crm: { lookupBy: "email", twenty: { enabled: true }, enrichmentAgent: "agent-123" },
         },
       });
 
@@ -303,7 +409,7 @@ describe("contextSyncNode", () => {
       expect(result.enrichmentStatus).toBeUndefined();
     });
 
-    it("filters out disabled enrichment tools", async () => {
+    it("skips enrichment when no enrichmentAgent configured", async () => {
       mockMcpClient.executeTool.mockResolvedValue({ success: true, result: "{}" });
 
       const state = makeState({
@@ -313,17 +419,12 @@ describe("contextSyncNode", () => {
 
       const config = makeConfig({
         graphSettings: {
-          crm: {
-            provider: "twenty",
-            lookupBy: "email",
-            enrichmentTools: [{ name: "disabled_tool", enabled: false }],
-          },
+          crm: { lookupBy: "email", twenty: { enabled: true } },
         },
       });
 
       const result = await contextSyncNode(state, config);
 
-      // All tools disabled → no enrichment fired
       expect(result.enrichmentStatus).toBeUndefined();
     });
   });

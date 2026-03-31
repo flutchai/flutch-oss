@@ -40,7 +40,7 @@
       "status": "stable",
       "releaseDate": "2026-03-18T00:00:00.000Z",
       "isActive": true,
-      "configSchemaPath": "./config-schema-simple.json"
+      "configSchemaPath": "./src/graph/simple/config-schema-simple.json"
     }
   }
 }

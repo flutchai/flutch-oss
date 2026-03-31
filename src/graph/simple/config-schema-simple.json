@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "systemPrompt": {
+      "type": "string",
+      "title": "System Prompt",
+      "format": "textarea",
+      "default": "You are a helpful AI assistant."
+    },
+    "model": {
+      "type": "modelConfig",
+      "title": "Model",
+      "params": {
+        "modelType": "chat",
+        "isActive": true,
+        "showTemperature": true,
+        "showMaxTokens": true,
+        "showTools": true
+      }
+    }
+  },
+  "required": ["systemPrompt"]
+}

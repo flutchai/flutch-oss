@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.8.0-alpha.1
+
+### Breaking Changes
+
+- **`ModelConfig` replaces flat model settings** — `modelId`, `temperature`, `maxTokens` replaced by unified `ModelConfig` object (`{ provider, modelName, temperature?, maxTokens?, tools? }`) across conversation, extraction, and safety configs
+- **Multi-provider CRM config** — single `provider` field replaced by per-provider objects (`twenty`, `jobber`, `zoho`) with `enabled` flag and `_credentials`; only one provider active at a time
+- **`availableTools` removed from conversation config** — tools now live inside `ModelConfig.tools`
+- **`enrichmentTools` replaced by `enrichmentAgent`** — enrichment now calls a sub-agent via `call_agent` instead of executing MCP tools directly
+
+### Changed
+
+- **CRM contact flow: find → upsert** — first contact creates/finds via upsert tool instead of find, ensuring CRM record exists from first turn
+- **Extraction fires only when needed** — skipped when no missing qualification fields or no `crmId`
+- **Credential resolution cascade** — new `getProviderCredentials` helper looks up credentials from sibling tool configs, then falls back to per-provider `_credentials`
+- Config schema uses new widget types: `modelConfig`, `credentials`, `oauth`, `agentSelector`
+- `parseMcpResult` simplified — expects standard JSON instead of regex-based extraction from text
+- Upgrade `@flutchai/flutch-sdk` to `0.2.17`
+
+### Added
+
+- `getActiveCrmProvider()` — finds first enabled CRM provider from config
+- `buildCreateArgs()` — builds provider-specific create/upsert arguments with name resolution
+- `buildEnrichmentQuery()` — generates natural language query from contact fields for enrichment agent
+- Zoho `get` tool (`zoho_get_contact`) and Jobber `upsert` tool (`jobber_upsert_client`) in CRM tool map
+
+### Fixed
+
+- Simple graph builder now correctly unpacks `ModelConfig` object for model initialization
+
 ## 0.7.5
 
 ### Changed

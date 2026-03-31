@@ -5,28 +5,16 @@
       "type": "object",
       "title": "Conversation",
       "properties": {
-        "modelId": {
-          "type": "modelSelector",
+        "model": {
+          "type": "modelConfig",
           "title": "Model",
           "params": {
             "modelType": "chat",
-            "isActive": true
+            "isActive": true,
+            "showTemperature": true,
+            "showMaxTokens": true,
+            "showTools": true
           }
-        },
-        "temperature": {
-          "type": "number",
-          "title": "Temperature",
-          "default": 0.7,
-          "minimum": 0,
-          "maximum": 1
-        },
-        "maxTokens": {
-          "type": "integer",
-          "title": "Max Tokens",
-          "default": 2048,
-          "minimum": 100,
-          "maximum": 4000,
-          "description": "Maximum tokens in response"
         },
         "systemPrompt": {
           "type": "string",
@@ -49,29 +37,14 @@
           "minimum": 1,
           "maximum": 100,
           "description": "Maximum number of graph iterations (tool call loops)"
-        },
-        "availableTools": {
-          "type": "toolSelector",
-          "title": "Available Tools",
-          "description": "Select which tools the agent can use during conversations",
-          "params": {
-            "isMulti": true,
-            "showDescriptions": true
-          }
         }
       }
     },
     "crm": {
       "type": "object",
       "title": "CRM Integration",
-      "description": "Configure contact synchronization with CRM",
+      "description": "Configure contact synchronization with CRM. Enable one provider and fill in its credentials.",
       "properties": {
-        "provider": {
-          "type": "string",
-          "title": "CRM Provider",
-          "description": "Which CRM system to use for contact management",
-          "enum": ["twenty", "zoho", "jobber"]
-        },
         "lookupBy": {
           "type": "string",
           "title": "Contact Lookup Field",
@@ -79,13 +52,48 @@
           "default": "email",
           "enum": ["email", "phone"]
         },
-        "enrichmentTools": {
-          "type": "toolSelector",
-          "title": "Enrichment Tools",
-          "description": "MCP tools to run for lead enrichment on the first message (async, fire-and-forget). E.g. clearbit_lookup, research_agent.",
-          "params": {
-            "isMulti": true,
-            "showDescriptions": true
+        "enrichmentAgent": {
+          "type": "agentSelector",
+          "title": "Enrichment Agent",
+          "description": "Agent to call for lead enrichment on the first message (async, fire-and-forget). The agent receives contact data and can enrich it in the CRM."
+        },
+        "twenty": {
+          "type": "object",
+          "title": "Twenty CRM",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "title": "Enable Twenty CRM",
+              "default": false
+            },
+            "_credentials": {
+              "type": "credentials",
+              "title": "API Credentials",
+              "params": {
+                "fields": [
+                  { "key": "apiKey", "title": "API Key" },
+                  { "key": "baseUrl", "title": "Base URL" }
+                ]
+              }
+            }
+          }
+        },
+        "jobber": {
+          "type": "object",
+          "title": "Jobber CRM",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "title": "Enable Jobber",
+              "default": false
+            },
+            "_credentials": {
+              "type": "oauth",
+              "title": "Jobber OAuth",
+              "params": {
+                "provider": "jobber"
+              }
+            }
           }
         }
       }
@@ -121,8 +129,8 @@
             "required": ["name", "description"]
           }
         },
-        "extractionModelId": {
-          "type": "modelSelector",
+        "extractionModel": {
+          "type": "modelConfig",
           "title": "Extraction Model",
           "description": "Cheap/fast model used to extract qualification data from conversation and sync to CRM. If not set, extraction is disabled.",
           "params": {
@@ -155,8 +163,8 @@
               "title": "Enable Input Sanitization",
               "default": false
             },
-            "modelId": {
-              "type": "modelSelector",
+            "model": {
+              "type": "modelConfig",
               "title": "Moderation Model",
               "params": {
                 "modelType": "chat",
