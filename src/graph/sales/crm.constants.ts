@@ -55,7 +55,6 @@ const CRM_TOOL_MAP: Record<string, Record<string, string>> = {
     get: "twenty_get_person",
     create: "twenty_create_person",
     update: "twenty_update_person",
-    upsert: "twenty_upsert_person",
   },
   zoho: {
     find: "zoho_search_contacts",
@@ -79,8 +78,12 @@ const CRM_TOOL_MAP: Record<string, Record<string, string>> = {
 export function getCrmToolName(
   provider: string,
   action: "find" | "get" | "create" | "update" | "upsert"
-): string {
-  return CRM_TOOL_MAP[provider]?.[action] ?? `${provider}_${action}_contact`;
+): string | null {
+  const mapped = CRM_TOOL_MAP[provider]?.[action];
+  if (mapped) return mapped;
+  // If the action is not mapped (e.g. Twenty has no upsert), return null
+  if (CRM_TOOL_MAP[provider] && !CRM_TOOL_MAP[provider][action]) return null;
+  return `${provider}_${action}_contact`;
 }
 
 /**

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0-alpha.2
+
+### Changed
+
+- **Twenty CRM: find-or-create instead of upsert** — Twenty has no native upsert; `syncContact` now calls `find` → `create` for Twenty while Zoho/Jobber still use their native upsert tools
+- `getCrmToolName()` returns `null` for unmapped actions instead of generating a fallback name
+- New `findOrCreateContact()` private method in `SalesGraphBuilder` handles find → create flow
+
 ## 0.8.0-alpha.1
 
 ### Breaking Changes

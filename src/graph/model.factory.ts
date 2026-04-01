@@ -44,7 +44,7 @@ export function createModel(settings: ModelSettings): BaseChatModel {
 
   logger.debug(
     `Creating model: provider=${provider} model=${settings.model}` +
-    (gatewayURL ? ` gateway=${gatewayURL}` : " (standalone)")
+      (gatewayURL ? ` gateway=${gatewayURL}` : " (standalone)")
   );
 
   switch (provider) {

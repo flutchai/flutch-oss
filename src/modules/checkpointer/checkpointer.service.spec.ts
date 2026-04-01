@@ -13,10 +13,7 @@ const mockPool = { end: jest.fn() };
 
 async function buildModule() {
   return Test.createTestingModule({
-    providers: [
-      CheckpointerService,
-      { provide: PG_POOL_TOKEN, useValue: mockPool },
-    ],
+    providers: [CheckpointerService, { provide: PG_POOL_TOKEN, useValue: mockPool }],
   }).compile();
 }
 

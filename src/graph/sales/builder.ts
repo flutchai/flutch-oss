@@ -32,6 +32,7 @@ import {
   getCrmToolName,
   parseMcpResult,
   buildCreateArgs,
+  buildLookupArgs,
 } from "./crm.constants";
 import { CHECKPOINTER } from "../../modules/checkpointer/checkpointer.service";
 import { LangfuseService } from "../../modules/langfuse/langfuse.service";
@@ -163,38 +164,41 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     }
 
     try {
+      const creds = getProviderCredentials(provider, toolConfigs, providerConfig._credentials);
       const upsertToolName = getCrmToolName(provider, "upsert");
-      const toolConfig =
-        toolConfigs[upsertToolName] ??
-        getProviderCredentials(provider, toolConfigs, providerConfig._credentials);
-      const upsertParams = buildCreateArgs(provider, metadata);
 
-      this.logger.debug(`Upserting contact in ${provider} via ${upsertToolName}`);
+      if (upsertToolName) {
+        // Provider has native upsert (Zoho, Jobber)
+        const toolConfig = toolConfigs[upsertToolName] ?? creds;
+        const upsertParams = buildCreateArgs(provider, metadata);
 
-      const result = await this.mcpClient.executeTool(upsertToolName, {
-        ...upsertParams,
-        ...toolConfig,
-      });
+        this.logger.debug(`Upserting contact in ${provider} via ${upsertToolName}`);
+        const result = await this.mcpClient.executeTool(upsertToolName, {
+          ...upsertParams,
+          ...toolConfig,
+        });
 
-      if (!result.success || !result.result) {
-        this.logger.warn("CRM upsert failed, using metadata only");
-        return metadata;
+        if (!result.success || !result.result) {
+          this.logger.warn("CRM upsert failed, using metadata only");
+          return metadata;
+        }
+
+        const parsed = parseMcpResult(result.result);
+        const raw = parsed?.client || (Array.isArray(parsed) ? parsed[0] : parsed);
+
+        if (!raw || !raw.id) {
+          this.logger.debug("CRM upsert returned no client, using metadata only");
+          return metadata;
+        }
+
+        const action = parsed?.action || "unknown";
+        this.logger.log(`Contact ${action} ${raw.id} in ${provider}`);
+        return { crmId: raw.id, ...filterSystemFields(raw) };
       }
 
-      const parsed = parseMcpResult(result.result);
-      const raw = parsed?.client || (Array.isArray(parsed) ? parsed[0] : parsed);
-
-      if (!raw || !raw.id) {
-        this.logger.debug("CRM upsert returned no client, using metadata only");
-        return metadata;
-      }
-
-      const action = parsed?.action || "unknown";
-      const crmId = raw.id;
-      const filtered = filterSystemFields(raw);
-
-      this.logger.log(`Contact ${action} ${crmId} in ${provider}`);
-      return { crmId, ...filtered };
+      // No native upsert — find then create (e.g. Twenty)
+      const lookupBy = crmConfig?.lookupBy ?? "email";
+      return await this.findOrCreateContact(provider, metadata, lookupBy, creds, toolConfigs);
     } catch (error) {
       this.logger.warn(`CRM upsert failed: ${error instanceof Error ? error.message : error}`);
       return extractContactFromRequestMetadata(state);
@@ -233,6 +237,68 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
       );
       return null;
     }
+  }
+
+  /**
+   * Find contact by lookupBy field, create if not found.
+   * Used for providers without native upsert (e.g. Twenty).
+   */
+  private async findOrCreateContact(
+    provider: string,
+    metadata: IContactData,
+    lookupBy: string,
+    creds: Record<string, any>,
+    toolConfigs: Record<string, any>
+  ): Promise<IContactData> {
+    const lookupValue = metadata[lookupBy];
+
+    // 1. Try to find existing contact
+    if (lookupValue) {
+      const findToolName = getCrmToolName(provider, "find")!;
+      const findConfig = toolConfigs[findToolName] ?? creds;
+      const findArgs = buildLookupArgs(provider, lookupBy, lookupValue);
+
+      this.logger.debug(`Finding contact in ${provider} by ${lookupBy}=${lookupValue}`);
+      const findResult = await this.mcpClient.executeTool(findToolName, {
+        ...findArgs,
+        ...findConfig,
+      });
+
+      if (findResult.success && findResult.result) {
+        const parsed = parseMcpResult(findResult.result);
+        const items = parsed?.edges ?? parsed?.nodes ?? (Array.isArray(parsed) ? parsed : [parsed]);
+        const raw = items[0]?.node ?? items[0];
+
+        if (raw?.id) {
+          this.logger.log(`Contact found ${raw.id} in ${provider}`);
+          return { crmId: raw.id, ...filterSystemFields(raw) };
+        }
+      }
+    }
+
+    // 2. Not found — create
+    const createToolName = getCrmToolName(provider, "create")!;
+    const createConfig = toolConfigs[createToolName] ?? creds;
+    const createArgs = buildCreateArgs(provider, metadata);
+
+    this.logger.debug(`Creating contact in ${provider}`);
+    const createResult = await this.mcpClient.executeTool(createToolName, {
+      ...createArgs,
+      ...createConfig,
+    });
+
+    if (createResult.success && createResult.result) {
+      const parsed = parseMcpResult(createResult.result);
+      const raw = parsed?.data ?? parsed;
+
+      if (raw?.id) {
+        this.logger.log(`Contact created ${raw.id} in ${provider}`);
+        return { crmId: raw.id, ...filterSystemFields(raw) };
+      }
+    }
+
+    this.logger.warn("CRM find-or-create returned no contact, using metadata only");
+    return metadata;
   }
 
   private fireExtraction(

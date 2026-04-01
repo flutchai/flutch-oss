@@ -100,7 +100,7 @@ describe("crm.constants", () => {
       expect(getCrmToolName("twenty", "get")).toBe("twenty_get_person");
       expect(getCrmToolName("twenty", "create")).toBe("twenty_create_person");
       expect(getCrmToolName("twenty", "update")).toBe("twenty_update_person");
-      expect(getCrmToolName("twenty", "upsert")).toBe("twenty_upsert_person");
+      expect(getCrmToolName("twenty", "upsert")).toBeNull();
     });
 
     it("returns correct tool names for zoho", () => {
