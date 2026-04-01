@@ -15,6 +15,14 @@ jest.mock("@flutchai/flutch-sdk", () => ({
   })),
   executeToolWithAttachments: jest.fn(),
   IGraphAttachment: {},
+  ModelProvider: {
+    OPENAI: "openai",
+    ANTHROPIC: "anthropic",
+    MISTRAL: "mistral",
+    AWS: "aws",
+    COHERE: "cohere",
+    VOYAGEAI: "voyageai",
+  },
 }));
 
 jest.mock("../../../modules/langfuse/langfuse.service", () => ({
@@ -100,7 +108,11 @@ describe("execToolsNode", () => {
       configurable: {
         graphSettings: {
           conversation: {
-            availableTools: [{ name: "kb_search", enabled: true, config: { kbIds: ["kb-1"] } }],
+            model: {
+              provider: "openai",
+              modelName: "gpt-4o-mini",
+              tools: [{ name: "kb_search", enabled: true, config: { kbIds: ["kb-1"] } }],
+            },
           },
         },
         context: { userId: "user-1", agentId: "agent-1" },

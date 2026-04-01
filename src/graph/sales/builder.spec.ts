@@ -28,6 +28,14 @@ jest.mock("@flutchai/flutch-sdk", () => ({
   ModelInitializer: jest.fn().mockImplementation(() => mockModelInitializer),
   executeToolWithAttachments: jest.fn(),
   IGraphAttachment: {},
+  ModelProvider: {
+    OPENAI: "openai",
+    ANTHROPIC: "anthropic",
+    MISTRAL: "mistral",
+    AWS: "aws",
+    COHERE: "cohere",
+    VOYAGEAI: "voyageai",
+  },
 }));
 
 const compileSpy = jest.spyOn(StateGraph.prototype, "compile");
@@ -55,10 +63,8 @@ const basePayload = {
       context: { userId: "user-1", agentId: "sales-agent", companyId: "co-1" },
       graphSettings: {
         conversation: {
-          modelId: "gpt-4o-mini",
-          temperature: 0.7,
+          model: { provider: "openai", modelName: "gpt-4o-mini" },
           systemPrompt: "You are a sales agent.",
-          availableTools: [],
         },
       },
     },
@@ -172,7 +178,7 @@ describe("SalesGraphBuilder", () => {
   });
 
   describe("buildGraph — settings", () => {
-    it("builds graph with availableTools in conversation", async () => {
+    it("builds graph with tools in model config", async () => {
       const payloadWithToolConfig = {
         ...basePayload,
         config: {
@@ -181,11 +187,15 @@ describe("SalesGraphBuilder", () => {
             graphSettings: {
               conversation: {
                 ...basePayload.config.configurable.graphSettings.conversation,
-                availableTools: [
-                  { name: "kb_search", enabled: true, config: { kbIds: ["kb-1"] } },
-                  { name: "disabled_tool", enabled: false },
-                  "simple_tool",
-                ],
+                model: {
+                  provider: "openai",
+                  modelName: "gpt-4o-mini",
+                  tools: [
+                    { name: "kb_search", enabled: true, config: { kbIds: ["kb-1"] } },
+                    { name: "disabled_tool", enabled: false },
+                    "simple_tool",
+                  ],
+                },
               },
             },
           },
@@ -257,7 +267,7 @@ describe("SalesGraphBuilder", () => {
       expect(graph).toBeDefined();
     });
 
-    it("builds graph with extractionModelId and messageWindowSize", async () => {
+    it("builds graph with extractionModel and messageWindowSize", async () => {
       const payloadWithExtraction = {
         ...basePayload,
         config: {
@@ -269,7 +279,7 @@ describe("SalesGraphBuilder", () => {
                 messageWindowSize: 20,
               },
               qualification: {
-                extractionModelId: "gpt-4o-mini",
+                extractionModel: { provider: "openai", modelName: "gpt-4o-mini" },
               },
             },
           },

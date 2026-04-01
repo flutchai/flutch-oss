@@ -1,8 +1,4 @@
-import {
-  SalesGraphBuilder,
-  routeAfterInputSanitize,
-  routeAfterGenerate,
-} from "../builder";
+import { SalesGraphBuilder, routeAfterInputSanitize, routeAfterGenerate } from "../builder";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { SalesState } from "../sales.annotations";
 
@@ -34,6 +30,14 @@ jest.mock("@flutchai/flutch-sdk", () => ({
   ModelInitializer: jest.fn().mockImplementation(() => mockModelInitializer),
   executeToolWithAttachments: jest.fn(),
   IGraphAttachment: {},
+  ModelProvider: {
+    OPENAI: "openai",
+    ANTHROPIC: "anthropic",
+    MISTRAL: "mistral",
+    AWS: "aws",
+    COHERE: "cohere",
+    VOYAGEAI: "voyageai",
+  },
 }));
 
 const mockMcpClient = {
@@ -60,7 +64,7 @@ function makeConfig(overrides: Record<string, any> = {}) {
   return {
     configurable: {
       graphSettings: {
-        conversation: { modelId: "gpt-4o-mini" },
+        conversation: { model: { provider: "openai", modelName: "gpt-4o-mini" } },
         ...gsOverride,
       },
       ...rest,
@@ -97,15 +101,18 @@ describe("generateNode", () => {
     expect(result.text).toBe("Here is my response");
   });
 
-  it("calls initializeChatModel with correct params from graphSettings", async () => {
+  it("calls initializeChatModel with correct ModelConfig from graphSettings", async () => {
     const state = makeState();
     const config = makeConfig({
       graphSettings: {
         conversation: {
-          modelId: "claude-3-haiku",
-          temperature: 0.5,
-          maxTokens: 1024,
-          availableTools: [{ name: "kb_search", enabled: true }],
+          model: {
+            provider: "anthropic",
+            modelName: "claude-3-haiku",
+            temperature: 0.5,
+            maxTokens: 1024,
+            tools: [{ name: "kb_search", enabled: true }],
+          },
         },
       },
     });
@@ -113,21 +120,22 @@ describe("generateNode", () => {
     await generateNode(state, config);
 
     expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith({
-      modelId: "claude-3-haiku",
+      provider: "anthropic",
+      modelName: "claude-3-haiku",
       temperature: 0.5,
       maxTokens: 1024,
-      toolsConfig: [{ toolName: "kb_search", enabled: true, config: undefined }],
+      tools: [{ name: "kb_search", enabled: true }],
     });
   });
 
-  it("defaults modelId to gpt-4o-mini when not in graphSettings", async () => {
+  it("defaults model to openai gpt-4o-mini when not in graphSettings", async () => {
     const state = makeState();
     const config = makeConfig({ graphSettings: {} });
 
     await generateNode(state, config);
 
     expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith(
-      expect.objectContaining({ modelId: "gpt-4o-mini" })
+      expect.objectContaining({ provider: "openai", modelName: "gpt-4o-mini" })
     );
   });
 
@@ -159,7 +167,9 @@ describe("generateNode", () => {
     const state = makeState({
       contactData: { crmId: "crm-1", name: "Ivan", email: "ivan@test.com", company: "Acme" },
     });
-    const config = makeConfig({ graphSettings: { conversation: { systemPrompt: "You are a sales agent." } } });
+    const config = makeConfig({
+      graphSettings: { conversation: { systemPrompt: "You are a sales agent." } },
+    });
 
     await generateNode(state, config);
 
@@ -228,13 +238,16 @@ describe("generateNode", () => {
     expect(mockCallbackModel.invoke).toHaveBeenCalled();
   });
 
-  it("handles string tools in availableTools", async () => {
+  it("passes tools from model config to initializeChatModel", async () => {
     const state = makeState();
     const config = makeConfig({
       graphSettings: {
         conversation: {
-          modelId: "gpt-4o-mini",
-          availableTools: ["kb_search", "web_search"],
+          model: {
+            provider: "openai",
+            modelName: "gpt-4o-mini",
+            tools: ["kb_search", "web_search"],
+          },
         },
       },
     });
@@ -243,10 +256,7 @@ describe("generateNode", () => {
 
     expect(mockModelInitializer.initializeChatModel).toHaveBeenCalledWith(
       expect.objectContaining({
-        toolsConfig: [
-          { toolName: "kb_search", enabled: true },
-          { toolName: "web_search", enabled: true },
-        ],
+        tools: ["kb_search", "web_search"],
       })
     );
   });

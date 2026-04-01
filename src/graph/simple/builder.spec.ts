@@ -50,7 +50,10 @@ const basePayload = {
     configurable: {
       thread_id: "550e8400-e29b-41d4-a716-446655440000",
       context: { userId: "user-1", agentId: "roofing-agent", companyId: "co-1" },
-      graphSettings: { model: "gpt-4o-mini", graphType: "flutch.simple::1.0.0" },
+      graphSettings: {
+        model: { provider: "openai", modelName: "gpt-4o-mini" },
+        graphType: "flutch.simple::1.0.0",
+      },
     },
   },
 } as any;
@@ -96,14 +99,21 @@ describe("SimpleGraphBuilder", () => {
       await builder.buildGraph(basePayload);
       expect(modelFactory.createModel).toHaveBeenCalledWith({
         model: "gpt-4o-mini",
-        graphType: "flutch.simple::1.0.0",
+        provider: "openai",
+        temperature: undefined,
+        maxTokens: undefined,
       });
     });
 
     it("applies default model gpt-4o-mini when model is absent", async () => {
       const graph = await builder.buildGraph();
       expect(graph).toBeDefined();
-      expect(modelFactory.createModel).toHaveBeenCalledWith({ model: "gpt-4o-mini" });
+      expect(modelFactory.createModel).toHaveBeenCalledWith({
+        model: "gpt-4o-mini",
+        provider: undefined,
+        temperature: undefined,
+        maxTokens: undefined,
+      });
     });
 
     it("does not call withConfig when langfuse is disabled", async () => {
@@ -187,7 +197,10 @@ describe("SimpleGraphBuilder", () => {
         config: {
           configurable: {
             thread_id: "t-1",
-            graphSettings: { model: "gpt-4o-mini", systemPrompt: "You are a roofing expert." },
+            graphSettings: {
+              model: { provider: "openai", modelName: "gpt-4o-mini" },
+              systemPrompt: "You are a roofing expert.",
+            },
           },
         },
       });
@@ -212,7 +225,10 @@ describe("SimpleGraphBuilder", () => {
         config: {
           configurable: {
             thread_id: "t-1",
-            graphSettings: { model: "gpt-4o-mini", systemPrompt: "Be a roofing expert." },
+            graphSettings: {
+              model: { provider: "openai", modelName: "gpt-4o-mini" },
+              systemPrompt: "Be a roofing expert.",
+            },
           },
         },
       });

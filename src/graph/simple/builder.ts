@@ -53,7 +53,15 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
   async buildGraph(payload?: IGraphRequestPayload): Promise<any> {
     const graphSettings = payload?.config?.configurable?.graphSettings ?? {};
     const systemPrompt: string | undefined = graphSettings.systemPrompt;
-    const modelSettings = { ...graphSettings, model: graphSettings.model ?? "gpt-4o-mini" };
+
+    // model is now a ModelConfig object: { provider, modelName, temperature?, maxTokens?, tools? }
+    const modelConfig = graphSettings.model ?? {};
+    const modelSettings = {
+      model: modelConfig.modelName ?? "gpt-4o-mini",
+      provider: modelConfig.provider,
+      temperature: modelConfig.temperature,
+      maxTokens: modelConfig.maxTokens,
+    };
 
     this.logger.debug(`Building simple graph model=${modelSettings.model}`);
 
@@ -71,8 +79,11 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
       ? baseModel.withConfig({ callbacks: [langfuseCallback] })
       : baseModel;
 
-    // Bind tools if configured
-    const toolsDef = (graphSettings.tools ?? []).filter((t: any) => t.enabled);
+    // Bind tools if configured — tools come from model config
+    const rawTools = modelConfig.tools ?? [];
+    const toolsDef = rawTools
+      .map((t: any) => (typeof t === "string" ? { name: t, enabled: true } : t))
+      .filter((t: any) => t.enabled !== false);
     let boundModel = model;
 
     if (toolsDef.length > 0) {

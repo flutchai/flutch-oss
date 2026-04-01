@@ -18,9 +18,15 @@ jest.mock("dotenv", () => ({ config: jest.fn() }));
 jest.mock("./modules/database/entities/thread.entity", () => ({ Thread: class Thread {} }));
 jest.mock("./modules/database/entities/message.entity", () => ({ Message: class Message {} }));
 jest.mock("./modules/database/entities/user.entity", () => ({ User: class User {} }));
-jest.mock("./modules/database/entities/user-identity.entity", () => ({ UserIdentity: class UserIdentity {} }));
-jest.mock("./modules/database/entities/admin-user.entity", () => ({ AdminUser: class AdminUser {} }));
-jest.mock("./modules/kms/entities/knowledge-base.entity", () => ({ KnowledgeBase: class KnowledgeBase {} }));
+jest.mock("./modules/database/entities/user-identity.entity", () => ({
+  UserIdentity: class UserIdentity {},
+}));
+jest.mock("./modules/database/entities/admin-user.entity", () => ({
+  AdminUser: class AdminUser {},
+}));
+jest.mock("./modules/kms/entities/knowledge-base.entity", () => ({
+  KnowledgeBase: class KnowledgeBase {},
+}));
 jest.mock("./modules/kms/entities/article.entity", () => ({ Article: class Article {} }));
 
 /** Re-imports data-source with a clean module registry and given extra env vars.
@@ -32,10 +38,7 @@ async function load(extra: Record<string, string | undefined> = {}) {
     if (v === undefined) delete process.env[k];
     else process.env[k] = v;
   }
-  const [mod, typeorm] = await Promise.all([
-    import("./data-source"),
-    import("typeorm"),
-  ]);
+  const [mod, typeorm] = await Promise.all([import("./data-source"), import("typeorm")]);
   return { source: mod.AppDataSource, MockDataSource: typeorm.DataSource as jest.Mock };
 }
 

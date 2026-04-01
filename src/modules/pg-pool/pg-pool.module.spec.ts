@@ -50,9 +50,11 @@ describe("getSharedPool", () => {
   it("enables SSL when POSTGRES_SSL=true", () => {
     setEnv({ POSTGRES_SSL: "true" });
     getSharedPool();
-    expect(Pool).toHaveBeenCalledWith(expect.objectContaining({
-      ssl: { rejectUnauthorized: false },
-    }));
+    expect(Pool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ssl: { rejectUnauthorized: false },
+      })
+    );
   });
 
   it("returns the same instance on multiple calls (singleton)", () => {
