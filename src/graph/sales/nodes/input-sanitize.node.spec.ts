@@ -55,8 +55,9 @@ function makeState(overrides: Partial<State> = {}): State {
     attachments: {},
     enrichmentStatus: null,
     requestMetadata: {},
+    greetingSent: false,
     ...overrides,
-  };
+  } as State;
 }
 
 function makeConfig(overrides: Record<string, any> = {}) {

@@ -55,8 +55,9 @@ function makeState(overrides: Partial<State> = {}): State {
     attachments: {},
     enrichmentStatus: null,
     requestMetadata: {},
+    greetingSent: false,
     ...overrides,
-  };
+  } as State;
 }
 
 function makeConfig(overrides: Record<string, any> = {}) {
@@ -149,10 +150,11 @@ describe("generateNode", () => {
     const calls = mockModel.invoke.mock.calls[0];
     const messages = calls[0];
     expect(messages[0]).toBeInstanceOf(SystemMessage);
-    expect((messages[0] as any).content).toBe("Be helpful.");
+    expect((messages[0] as any).content).toContain("Be helpful.");
   });
 
-  it("does not prepend SystemMessage when systemPrompt is empty", async () => {
+  it("still prepends SystemMessage with greeting even when systemPrompt is empty", async () => {
+    const { SystemMessage } = await import("@langchain/core/messages");
     const state = makeState();
     const config = makeConfig({ graphSettings: { conversation: { systemPrompt: "" } } });
 
@@ -160,7 +162,9 @@ describe("generateNode", () => {
 
     const calls = mockModel.invoke.mock.calls[0];
     const messages = calls[0];
-    expect(messages[0]).toBeInstanceOf(HumanMessage);
+    // Greeting instruction is always injected as a SystemMessage
+    expect(messages[0]).toBeInstanceOf(SystemMessage);
+    expect((messages[0] as any).content).toContain("first message");
   });
 
   it("appends whitelisted contactData to system prompt (defaults)", async () => {
@@ -213,7 +217,8 @@ describe("generateNode", () => {
 
     const calls = mockModel.invoke.mock.calls[0];
     const passedMessages = calls[0];
-    expect(passedMessages).toHaveLength(3);
+    // 3 user messages + 1 system message (greeting)
+    expect(passedMessages).toHaveLength(4);
   });
 
   it("applies langfuseCallback via withConfig when present", async () => {
@@ -273,8 +278,8 @@ describe("generateNode", () => {
 
       const calls = mockModel.invoke.mock.calls[0];
       const passedMessages = calls[0];
-      // system prompt + 10 windowed messages
-      expect(passedMessages).toHaveLength(10);
+      // greeting system message + 10 windowed messages
+      expect(passedMessages).toHaveLength(11);
     });
 
     it("defaults to 50 messages when messageWindowSize not set", async () => {
@@ -288,8 +293,8 @@ describe("generateNode", () => {
 
       const calls = mockModel.invoke.mock.calls[0];
       const passedMessages = calls[0];
-      // 50 windowed messages (no system prompt since empty graphSettings)
-      expect(passedMessages).toHaveLength(50);
+      // greeting system message + 50 windowed messages
+      expect(passedMessages).toHaveLength(51);
     });
   });
 
