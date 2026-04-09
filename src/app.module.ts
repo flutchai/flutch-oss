@@ -24,6 +24,7 @@ import {
 import { createOssConfigFetcher } from "./graph/model-config-fetcher";
 
 const logger = new Logger("AppModule");
+const COMPANY_SLUG = process.env.COMPANY_SLUG;
 
 @Module({
   imports: [
@@ -36,7 +37,7 @@ const logger = new Logger("AppModule");
       engineType: GraphEngineType.LANGGRAPH,
       versioning: [
         {
-          baseGraphType: "flutch.simple",
+          baseGraphType: `${COMPANY_SLUG}.simple`,
           versions: [
             {
               version: "1.0.0",
@@ -46,7 +47,7 @@ const logger = new Logger("AppModule");
           ],
         },
         {
-          baseGraphType: "flutch.sales",
+          baseGraphType: `${COMPANY_SLUG}.sales`,
           versions: [
             {
               version: "2.0.0",
