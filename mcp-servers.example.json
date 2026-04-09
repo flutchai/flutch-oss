@@ -1,0 +1,21 @@
+{
+  "servers": [
+    {
+      "name": "sequential-thinking",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "--quiet", "@modelcontextprotocol/server-sequential-thinking"],
+      "enabled": true
+    },
+    {
+      "name": "web-search",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "--quiet", "tavily-mcp@0.1.4"],
+      "env": {
+        "TAVILY_API_KEY": "${TAVILY_API_KEY}"
+      },
+      "enabled": false
+    }
+  ]
+}

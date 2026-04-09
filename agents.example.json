@@ -1,81 +1,85 @@
 {
   "roofing-agent": {
-    "graphType": "flutch.agent::simple",
+    "graphType": "flutch.simple",
     "graphSettings": {
       "model": "gpt-4o-mini",
-      "systemPrompt": "You are a roofing expert assistant. Help customers with roofing questions, material selection, and cost estimation."
+      "systemPrompt": "You are a roofing expert assistant. Help customers with roofing questions, material selection, and cost estimation. Be concise and practical."
     },
     "platforms": {
-      "telegram": {
-        "botToken": "YOUR_TELEGRAM_BOT_TOKEN"
-      },
       "widget": {
         "widgetKey": "wk_roofing_abc123"
       }
     }
   },
+
   "sales-agent": {
-    "graphType": "flutch.agent::sales",
+    "graphType": "flutch.sales",
     "graphSettings": {
-      "llm": {
-        "modelId": "gpt-4o-mini",
-        "temperature": 0.7
-      },
-      "prompt": {
-        "template": "You are a consultative sales agent for an AI customer support platform. Your goal is to help the customer realize the scale of their problem and see the solution.",
+      "conversation": {
+        "model": {
+          "modelId": "gpt-4o-mini",
+          "temperature": 0.7
+        },
+        "systemPrompt": "You are a consultative sales agent for an AI customer support platform. Your goal is to help the customer realize the scale of their problem and see the solution.",
         "methodology": "SPIN: Situation → Problem → Implication → Need-Payoff. Ask questions that help the customer realize the problem themselves.",
         "guidelines": [
           "Don't ask about budget directly — help calculate the cost of the problem",
           "Connect pain points with specific numbers",
-          "Use calculator data for personalization",
           "Only suggest a demo when the customer asks 'how to solve this'",
           "Don't offer discounts or promise custom terms"
+        ],
+        "messageWindowSize": 50
+      },
+      "qualification": {
+        "extractionModel": {
+          "modelId": "gpt-4o-mini"
+        },
+        "runEvery": 1,
+        "fields": [
+          {
+            "name": "pain_awareness",
+            "label": "Problem Awareness",
+            "description": "Customer understands the scale of losses from the current situation",
+            "extractionHint": "Customer named specific loss numbers or emotionally described the pain",
+            "required": true
+          },
+          {
+            "name": "previous_attempts",
+            "label": "Previous Solution Attempts",
+            "description": "What they tried before and why it didn't work",
+            "extractionHint": "Mentioned other tools (Zendesk, Intercom, etc.) or reasons why current solution is unsatisfactory",
+            "required": true
+          },
+          {
+            "name": "impact_on_business",
+            "label": "Business Impact",
+            "description": "How the problem affects revenue, customers, team",
+            "extractionHint": "Connected the problem to business metrics: customer loss, revenue decline, reputation risks",
+            "required": true
+          },
+          {
+            "name": "requirements",
+            "label": "Solution Requirements",
+            "description": "Specific needs: channels, integrations, volume",
+            "extractionHint": "Named specific channels, CRM for integration, request volume, support language",
+            "required": true
+          },
+          {
+            "name": "decision_context",
+            "label": "Decision Context",
+            "description": "Who decides, is there a budget, what are the timelines",
+            "extractionHint": "Mentioned budget, management, deadlines, procurement process",
+            "required": false
+          },
+          {
+            "name": "readiness",
+            "label": "Action Readiness",
+            "description": "Customer is ready for a concrete next step",
+            "extractionHint": "Asked about demo, price, how to start, named specific timelines",
+            "required": false
+          }
         ]
       },
-      "topics": [
-        {
-          "name": "pain_awareness",
-          "label": "Problem Awareness",
-          "description": "Customer understands the scale of losses from the current situation",
-          "extractionHint": "Customer named specific loss numbers, consequences of the problem, or emotionally described the pain",
-          "required": true
-        },
-        {
-          "name": "previous_attempts",
-          "label": "Previous Solution Attempts",
-          "description": "What they tried before and why it didn't work",
-          "extractionHint": "Mentioned other tools (Zendesk, Intercom, etc.), attempts to solve the problem, or reasons why current solution is unsatisfactory",
-          "required": true
-        },
-        {
-          "name": "impact_on_business",
-          "label": "Business Impact",
-          "description": "How the problem affects revenue, customers, team",
-          "extractionHint": "Connected the problem to business metrics: customer loss, revenue decline, employee turnover, reputation risks",
-          "required": true
-        },
-        {
-          "name": "requirements",
-          "label": "Solution Requirements",
-          "description": "Specific needs: channels, integrations, volume",
-          "extractionHint": "Named specific channels (web, telegram, whatsapp), CRM for integration, request volume, support language",
-          "required": true
-        },
-        {
-          "name": "decision_context",
-          "label": "Decision Context",
-          "description": "Who decides, is there a budget, what are the timelines",
-          "extractionHint": "Mentioned budget, management, deadlines, procurement process, who else is involved in the decision",
-          "required": false
-        },
-        {
-          "name": "readiness",
-          "label": "Action Readiness",
-          "description": "Customer is ready for a concrete next step",
-          "extractionHint": "Asked about demo, price, how to start, asked to connect with a manager, named specific timelines",
-          "required": false
-        }
-      ],
       "tools": [
         {
           "name": "kb_search",
@@ -85,12 +89,14 @@
           }
         }
       ],
-      "extraction": {
-        "modelId": "gpt-4o-mini",
-        "runEvery": 1
-      },
       "crm": {
-        "provider": "twenty"
+        "provider": "twenty",
+        "lookupBy": "email"
+      },
+      "safety": {
+        "inputSanitization": {
+          "enabled": false
+        }
       }
     },
     "platforms": {
