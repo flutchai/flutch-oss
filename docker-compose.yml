@@ -1,26 +1,53 @@
 services:
-  # Flutch OSS agent engine
+  # ── Flutch agent engine ────────────────────────────────────────────────────
   engine:
     build: .
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - API_URL=${API_URL}
-      - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=${POSTGRES_USER:-flutch}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-flutch}
-      - POSTGRES_DB=${POSTGRES_DB:-flutch_oss}
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flutch}:${POSTGRES_PASSWORD:-flutch}@postgres:5432/${POSTGRES_DB:-flutch_oss}
+      CONFIG_MODE: ${CONFIG_MODE:-local}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      MCP_RUNTIME_URL: http://mcp-runtime:3004
+      # Telegram (optional — per-agent tokens, see .env.example)
+      TELEGRAM_BOT_TOKEN_ROOFING_AGENT: ${TELEGRAM_BOT_TOKEN_ROOFING_AGENT:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      # Tracing (optional)
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
     depends_on:
-      - postgres
-      - ragflow
+      postgres:
+        condition: service_healthy
+      mcp-runtime:
+        condition: service_healthy
     restart: unless-stopped
 
-  # PostgreSQL — single instance, separate DB per service
+  # ── MCP Runtime — tool execution proxy ────────────────────────────────────
+  mcp-runtime:
+    image: ghcr.io/flutchai/mcp-runtime:latest
+    # Or build locally:
+    # build:
+    #   context: ../mcp-runtime
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./mcp-servers.json:/app/mcp-servers.json:ro
+    environment:
+      PORT: 3004
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3004/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ── PostgreSQL + pgvector ─────────────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
     ports:
@@ -31,29 +58,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-flutch_oss}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flutch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
-  # Ragflow for knowledge base
-  ragflow:
-    image: infiniflow/ragflow:latest
-    ports:
-      - "9380:9380"
-    volumes:
-      - ragflow_data:/ragflow/data
-    restart: unless-stopped
-
-  # Log collector — sends logs to Loki or local file
-  promtail:
-    image: grafana/promtail:latest
-    volumes:
-      - /var/log:/var/log:ro
-      - ./config/promtail.yml:/etc/promtail/config.yml
-    command: -config.file=/etc/promtail/config.yml
-    restart: unless-stopped
-
-  # Metrics
+  # ── Metrics (optional) ────────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:latest
+    profiles: ["monitoring"]
     ports:
       - "9090:9090"
     volumes:
@@ -61,7 +76,15 @@ services:
       - prometheus_data:/prometheus
     restart: unless-stopped
 
+  promtail:
+    image: grafana/promtail:latest
+    profiles: ["monitoring"]
+    volumes:
+      - /var/log:/var/log:ro
+      - ./config/promtail.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+
 volumes:
   postgres_data:
-  ragflow_data:
   prometheus_data:
