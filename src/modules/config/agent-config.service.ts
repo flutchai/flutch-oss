@@ -40,6 +40,7 @@ export class AgentConfigService {
 
     if (this.mode === "local") {
       this.loadLocalConfigs();
+      this.watchLocalConfigs();
     }
   }
 
@@ -130,11 +131,34 @@ export class AgentConfigService {
       return;
     }
 
-    const content = fs.readFileSync(configPath, "utf-8");
-    const raw = JSON.parse(content);
-    for (const [agentId, cfg] of Object.entries(raw) as [string, any][]) {
-      this.localConfigs[agentId] = { ...cfg, agentId };
+    try {
+      const content = fs.readFileSync(configPath, "utf-8");
+      const raw = JSON.parse(content);
+      this.localConfigs = {};
+      for (const [agentId, cfg] of Object.entries(raw) as [string, any][]) {
+        this.localConfigs[agentId] = { ...cfg, agentId };
+      }
+      this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
+    } catch (err: any) {
+      this.logger.error(`Failed to reload agents.json: ${err.message}`);
     }
-    this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
+  }
+
+  private watchLocalConfigs(): void {
+    const configPath = path.resolve(process.cwd(), "agents.json");
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+
+    try {
+      fs.watch(configPath, () => {
+        if (debounce) clearTimeout(debounce);
+        debounce = setTimeout(() => {
+          this.logger.log("agents.json changed — reloading…");
+          this.loadLocalConfigs();
+        }, 200);
+      });
+      this.logger.debug("Watching agents.json for changes");
+    } catch {
+      // file may not exist yet — skip watch
+    }
   }
 }
