@@ -139,13 +139,10 @@
           }
         },
         "contactFieldsWhitelist": {
-          "type": "array",
+          "type": "string",
           "title": "Contact Fields Whitelist",
-          "description": "CRM contact fields visible to the AI in the system prompt. Only whitelisted fields are shared — all others are hidden. Leave empty to use defaults (name, company, industry, role).",
-          "items": {
-            "type": "string"
-          },
-          "default": ["name", "firstName", "lastName", "company", "companyName", "industry", "role", "jobTitle"]
+          "description": "CRM contact fields visible to the AI in the system prompt. Comma-separated list of field names. Leave empty to use defaults (name, company, industry, role).",
+          "default": "name,firstName,lastName,company,companyName,industry,role,jobTitle"
         }
       }
     },

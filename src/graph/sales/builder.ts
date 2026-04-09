@@ -91,22 +91,36 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     // ── Resolve active CRM provider ──
     const activeCrm = getActiveCrmProvider(crmConfig);
 
-    // ── 1. Fire extraction (async, fire-and-forget) ──
+    // ── 1. Load contact from CRM ──
+    if (activeCrm && this.mcpClient) {
+      const loadedContact = await this.loadContact(state, config);
+      if (loadedContact && Object.keys(loadedContact).length > 0) {
+        updates.contactData = loadedContact;
+        const fields = Object.entries(loadedContact)
+          .filter(([k, v]) => k !== "crmId" && v != null)
+          .map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`)
+          .join(", ");
+        this.logger.log(`[CRM] contact loaded: { ${fields} }`);
+      }
+    }
+
+    // ── 2. Fire extraction (async, fire-and-forget) ──
     const qualificationFields = qualification?.qualificationFields ?? [];
-    const hasMissingFields =
-      qualificationFields.length > 0 &&
-      qualificationFields.some(
-        f => !state.contactData?.[f.name] || state.contactData[f.name] === ""
-      );
+    const contactData = updates.contactData ?? state.contactData;
 
     if (
       state.messages.length > 1 &&
       qualification?.extractionModel &&
-      state.contactData?.crmId &&
-      hasMissingFields &&
+      contactData?.crmId &&
       activeCrm &&
       this.mcpClient
     ) {
+      const extractionContext = config?.configurable?.context;
+      const extractionExecCtx: Record<string, any> = {};
+      if (extractionContext?.userId) extractionExecCtx.userId = extractionContext.userId;
+      if (extractionContext?.agentId) extractionExecCtx.agentId = extractionContext.agentId;
+      if (extractionContext?.companyId) extractionExecCtx.companyId = extractionContext.companyId;
+
       this.fireExtraction(
         state.messages,
         qualificationFields,
@@ -114,16 +128,9 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
         activeCrm.provider,
         activeCrm.config._credentials,
         toolConfigs,
-        state.contactData
+        contactData,
+        extractionExecCtx
       );
-    }
-
-    // ── 2. Load contact from CRM ──
-    if (activeCrm && this.mcpClient) {
-      const loadedContact = await this.loadContact(state, config);
-      if (loadedContact && Object.keys(loadedContact).length > 0) {
-        updates.contactData = loadedContact;
-      }
     }
 
     // ── 3. Enrichment (first turn only) ──
@@ -148,12 +155,19 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
 
     const { provider, config: providerConfig } = activeCrm;
 
+    const context = config?.configurable?.context;
+    const executionContext: Record<string, any> = {};
+    if (context?.userId) executionContext.userId = context.userId;
+    if (context?.agentId) executionContext.agentId = context.agentId;
+    if (context?.companyId) executionContext.companyId = context.companyId;
+
     if (state.contactData?.crmId) {
       return this.loadContactById(
         state.contactData.crmId,
         provider,
         providerConfig._credentials,
-        toolConfigs
+        toolConfigs,
+        executionContext
       );
     }
 
@@ -173,10 +187,11 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
         const upsertParams = buildCreateArgs(provider, metadata);
 
         this.logger.debug(`Upserting contact in ${provider} via ${upsertToolName}`);
-        const result = await this.mcpClient.executeTool(upsertToolName, {
-          ...upsertParams,
-          ...toolConfig,
-        });
+        const result = await this.mcpClient.executeTool(
+          upsertToolName,
+          { ...upsertParams, ...toolConfig },
+          executionContext
+        );
 
         if (!result.success || !result.result) {
           this.logger.warn("CRM upsert failed, using metadata only");
@@ -198,7 +213,14 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
 
       // No native upsert — find then create (e.g. Twenty)
       const lookupBy = crmConfig?.lookupBy ?? "email";
-      return await this.findOrCreateContact(provider, metadata, lookupBy, creds, toolConfigs);
+      return await this.findOrCreateContact(
+        provider,
+        metadata,
+        lookupBy,
+        creds,
+        toolConfigs,
+        executionContext
+      );
     } catch (error) {
       this.logger.warn(`CRM upsert failed: ${error instanceof Error ? error.message : error}`);
       return extractContactFromRequestMetadata(state);
@@ -209,7 +231,8 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     crmId: string,
     provider: string,
     credentials: string | Record<string, any> | undefined,
-    toolConfigs: Record<string, any>
+    toolConfigs: Record<string, any>,
+    executionContext?: Record<string, any>
   ): Promise<IContactData | null> {
     try {
       const toolName = getCrmToolName(provider, "get");
@@ -218,10 +241,11 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
 
       this.logger.debug(`Refreshing contact ${crmId} via ${toolName}`);
 
-      const result = await this.mcpClient.executeTool(toolName, {
-        id: crmId,
-        ...toolConfig,
-      });
+      const result = await this.mcpClient.executeTool(
+        toolName,
+        { id: crmId, ...toolConfig },
+        executionContext
+      );
 
       if (!result.success || !result.result) return null;
 
@@ -248,7 +272,8 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     metadata: IContactData,
     lookupBy: string,
     creds: Record<string, any>,
-    toolConfigs: Record<string, any>
+    toolConfigs: Record<string, any>,
+    executionContext?: Record<string, any>
   ): Promise<IContactData> {
     const lookupValue = metadata[lookupBy];
 
@@ -259,10 +284,11 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
       const findArgs = buildLookupArgs(provider, lookupBy, lookupValue);
 
       this.logger.debug(`Finding contact in ${provider} by ${lookupBy}=${lookupValue}`);
-      const findResult = await this.mcpClient.executeTool(findToolName, {
-        ...findArgs,
-        ...findConfig,
-      });
+      const findResult = await this.mcpClient.executeTool(
+        findToolName,
+        { ...findArgs, ...findConfig },
+        executionContext
+      );
 
       if (findResult.success && findResult.result) {
         const parsed = parseMcpResult(findResult.result);
@@ -282,10 +308,11 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     const createArgs = buildCreateArgs(provider, metadata);
 
     this.logger.debug(`Creating contact in ${provider}`);
-    const createResult = await this.mcpClient.executeTool(createToolName, {
-      ...createArgs,
-      ...createConfig,
-    });
+    const createResult = await this.mcpClient.executeTool(
+      createToolName,
+      { ...createArgs, ...createConfig },
+      executionContext
+    );
 
     if (createResult.success && createResult.result) {
       const parsed = parseMcpResult(createResult.result);
@@ -308,11 +335,16 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     provider: string,
     credentials: string | Record<string, any> | undefined,
     toolConfigs: Record<string, any>,
-    contactData: IContactData
+    contactData: IContactData,
+    executionContext?: Record<string, any>
   ): void {
-    if (qualificationFields.length === 0) return;
+    // Build schema: qualificationFields + any contact fields already loaded from CRM
+    const { crmId, ...contactFields } = contactData ?? {};
+    const filteredContactFields = filterSystemFields(contactFields);
 
-    const schema = buildExtractionSchema(qualificationFields);
+    const schema = buildContactExtractionSchema(qualificationFields, filteredContactFields);
+
+    if (Object.keys(schema.shape).length === 0) return;
 
     (async () => {
       try {
@@ -330,11 +362,30 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
           .map(m => `${m._getType()}: ${typeof m.content === "string" ? m.content : ""}`)
           .join("\n");
 
+        // Build current contact summary for context
+        const currentValues = Object.entries(filteredContactFields)
+          .map(
+            ([k, v]) =>
+              `  ${k}: ${v == null || v === "" ? "unknown" : typeof v === "object" ? JSON.stringify(v) : v}`
+          )
+          .join("\n");
+
+        const fieldDescriptions = qualificationFields
+          .filter(
+            f =>
+              !filteredContactFields.hasOwnProperty(f.name) || filteredContactFields[f.name] == null
+          )
+          .map(f => `  ${f.name}: ${f.description}`)
+          .join("\n");
+
         const result = await structuredModel.invoke([
           new SystemMessage(
-            `Extract the following fields from the conversation if mentioned. ` +
-              `Return null for any field not discussed.\n\n` +
-              `Conversation:\n${conversationText}`
+            `You are extracting contact information from a conversation.\n\n` +
+              `Current contact data:\n${currentValues || "  (empty)"}\n\n` +
+              (fieldDescriptions ? `Fields to collect:\n${fieldDescriptions}\n\n` : "") +
+              `Recent conversation:\n${conversationText}\n\n` +
+              `Extract only fields where the user provided NEW or DIFFERENT information compared to current values. ` +
+              `Return null for fields that were not mentioned or already match current values.`
           ),
         ]);
 
@@ -345,19 +396,23 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
           }
         }
 
-        if (Object.keys(extracted).length === 0) return;
+        if (Object.keys(extracted).length === 0) {
+          this.logger.debug("Extraction: no new fields found");
+          return;
+        }
 
-        const crmId = contactData?.crmId;
+        this.logger.log(`[CRM] extraction updated fields: ${Object.keys(extracted).join(", ")}`);
+
         if (crmId) {
           const toolName = getCrmToolName(provider, "update");
           const toolConfig =
             toolConfigs[toolName] ?? getProviderCredentials(provider, toolConfigs, credentials);
-          await this.mcpClient.executeTool(toolName, {
-            id: crmId,
-            ...extracted,
-            ...toolConfig,
-          });
-          this.logger.debug(`Extraction saved to CRM: ${Object.keys(extracted).join(", ")}`);
+          await this.mcpClient.executeTool(
+            toolName,
+            { id: crmId, ...extracted, ...toolConfig },
+            executionContext
+          );
+          this.logger.log(`[CRM] extraction saved to CRM: ${Object.keys(extracted).join(", ")}`);
         }
       } catch (error) {
         this.logger.warn(`Extraction failed: ${error instanceof Error ? error.message : error}`);
@@ -500,7 +555,8 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
       conversation.systemPrompt,
       state.contactData,
       qualification?.qualificationFields ?? [],
-      qualification?.contactFieldsWhitelist
+      qualification?.contactFieldsWhitelist,
+      state.greetingSent
     );
 
     // ── Message windowing ──
@@ -520,7 +576,7 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     const response = (await model.invoke(messages, config)) as AIMessage;
     const text = typeof response.content === "string" ? response.content : "";
 
-    return { messages: [response], text };
+    return { messages: [response], text, greetingSent: true };
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -728,7 +784,8 @@ function buildPrompt(
   basePrompt: string | undefined,
   contactData: IContactData | undefined,
   qualificationFields: IQualificationField[],
-  contactFieldsWhitelist?: string[]
+  contactFieldsWhitelist?: string[],
+  greetingSent?: boolean
 ): string | undefined {
   const parts: string[] = [];
 
@@ -738,9 +795,15 @@ function buildPrompt(
 
   // Known data (from CRM, filtered through whitelist)
   if (contactData && Object.keys(contactData).length > 0) {
+    const rawWhitelist = contactFieldsWhitelist as unknown as string[] | string | undefined;
     const whitelist =
-      contactFieldsWhitelist && contactFieldsWhitelist.length > 0
-        ? contactFieldsWhitelist
+      rawWhitelist && rawWhitelist.length > 0
+        ? typeof rawWhitelist === "string"
+          ? rawWhitelist
+              .split(",")
+              .map(s => s.trim())
+              .filter(Boolean)
+          : rawWhitelist
         : DEFAULT_CONTACT_FIELDS_WHITELIST;
     const whitelistSet = new Set(whitelist);
 
@@ -768,6 +831,13 @@ function buildPrompt(
     }
   }
 
+  // Greeting instruction — injected dynamically to survive message windowing
+  parts.push(
+    greetingSent
+      ? `You are continuing the conversation.`
+      : `This is the first message — greet the user before anything else.`
+  );
+
   return parts.length > 0 ? parts.join("\n\n") : undefined;
 }
 
@@ -776,6 +846,29 @@ function buildExtractionSchema(fields: IQualificationField[]) {
   const entries: Record<string, z.ZodTypeAny> = {};
   for (const field of fields) {
     entries[field.name] = z.string().nullable().optional().describe(field.description);
+  }
+  return z.object(entries);
+}
+
+/**
+ * Build extraction schema combining qualificationFields + CRM contact fields.
+ * qualificationFields provide descriptions; contact fields are added as plain string slots.
+ */
+function buildContactExtractionSchema(
+  qualificationFields: IQualificationField[],
+  contactFields: Record<string, any>
+) {
+  const entries: Record<string, z.ZodTypeAny> = {};
+  // qualificationFields first (with descriptions)
+  for (const field of qualificationFields) {
+    entries[field.name] = z.string().nullable().optional().describe(field.description);
+  }
+  // Add any CRM fields not already covered by qualificationFields
+  const qualNames = new Set(qualificationFields.map(f => f.name));
+  for (const key of Object.keys(contactFields)) {
+    if (!qualNames.has(key) && typeof contactFields[key] !== "object") {
+      entries[key] = z.string().nullable().optional();
+    }
   }
   return z.object(entries);
 }
@@ -828,13 +921,14 @@ function getProviderCredentials(
       return { _credentials: config._credentials };
     }
   }
-  // 2. Fall back to per-provider credentials (resolved object from backend)
-  if (
-    crmCredentials &&
-    typeof crmCredentials === "object" &&
-    Object.keys(crmCredentials).length > 0
-  ) {
-    return { _credentials: crmCredentials };
+  // 2. Fall back to per-provider credentials (string reference or resolved object)
+  if (crmCredentials) {
+    if (typeof crmCredentials === "string" && crmCredentials.length > 0) {
+      return { _credentials: crmCredentials };
+    }
+    if (typeof crmCredentials === "object" && Object.keys(crmCredentials).length > 0) {
+      return { _credentials: crmCredentials };
+    }
   }
   return {};
 }

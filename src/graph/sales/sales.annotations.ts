@@ -30,4 +30,9 @@ export const SalesState = Annotation.Root({
     reducer: (x, y) => (Object.keys(y).length > 0 ? y : x),
     default: () => ({}),
   }),
+  /** Whether the agent has already sent a greeting. Persisted to survive message windowing. */
+  greetingSent: Annotation<boolean>({
+    reducer: (_x, y) => y,
+    default: () => false,
+  }),
 });

@@ -39,9 +39,15 @@ export const SYSTEM_FIELDS = new Set([
 export function filterSystemFields(data: Record<string, any>): Record<string, any> {
   const filtered: Record<string, any> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (!SYSTEM_FIELDS.has(key) && value != null) {
-      filtered[key] = value;
+    if (SYSTEM_FIELDS.has(key)) continue;
+    if (value == null || value === "") continue;
+    // Filter nested objects that are entirely empty (e.g. { primaryEmail: "" })
+    if (typeof value === "object" && !Array.isArray(value)) {
+      const nested = filterSystemFields(value);
+      if (Object.keys(nested).length > 0) filtered[key] = nested;
+      continue;
     }
+    filtered[key] = value;
   }
   return filtered;
 }
@@ -55,6 +61,7 @@ const CRM_TOOL_MAP: Record<string, Record<string, string>> = {
     get: "twenty_get_person",
     create: "twenty_create_person",
     update: "twenty_update_person",
+    upsert: "twenty_upsert_person",
   },
   zoho: {
     find: "zoho_search_contacts",
@@ -88,6 +95,7 @@ export function getCrmToolName(
 
 /**
  * Parse MCP tool result — expects standard JSON (object, array, or JSON string).
+ * Also handles Twenty-style responses: "Message text\n\n{...json...}"
  */
 export function parseMcpResult(result: any): any {
   if (result == null) return null;
@@ -96,6 +104,15 @@ export function parseMcpResult(result: any): any {
     try {
       return JSON.parse(result);
     } catch {
+      // Twenty MCP returns "✅ Message\n\n{json}" — extract JSON after last \n\n
+      const parts = result.split("\n\n");
+      for (let i = parts.length - 1; i >= 0; i--) {
+        try {
+          return JSON.parse(parts[i]);
+        } catch {
+          // continue
+        }
+      }
       return result;
     }
   }
@@ -152,7 +169,14 @@ function resolveNames(contactData: Record<string, any>): { firstName?: string; l
       lastName: contactData.lastName,
     };
   }
-  if (contactData.name) {
+  // Twenty returns name as { firstName, lastName } object
+  if (contactData.name && typeof contactData.name === "object") {
+    return {
+      firstName: contactData.name.firstName,
+      lastName: contactData.name.lastName,
+    };
+  }
+  if (typeof contactData.name === "string" && contactData.name) {
     const parts = contactData.name.trim().split(/\s+/);
     return {
       firstName: parts[0],
@@ -173,8 +197,8 @@ export function buildCreateArgs(
     const args: Record<string, any> = {};
     if (firstName) args.firstName = firstName;
     if (lastName) args.lastName = lastName;
-    if (email) args.emails = { primaryEmail: email };
-    if (phone) args.phones = { primaryPhoneNumber: phone };
+    if (email) args.email = email;
+    if (phone) args.phone = phone;
     return args;
   }
 
