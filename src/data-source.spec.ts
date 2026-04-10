@@ -4,11 +4,7 @@
  */
 
 const BASE_ENV = {
-  POSTGRES_HOST: "localhost",
-  POSTGRES_PORT: "5432",
-  POSTGRES_USER: "user",
-  POSTGRES_PASSWORD: "pass",
-  POSTGRES_DB: "testdb",
+  DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
 };
 
 jest.mock("typeorm", () => ({
@@ -43,7 +39,7 @@ async function load(extra: Record<string, string | undefined> = {}) {
 }
 
 afterEach(() => {
-  delete process.env.POSTGRES_SSL;
+  delete process.env.DATABASE_SSL;
 });
 
 describe("AppDataSource", () => {
@@ -52,40 +48,34 @@ describe("AppDataSource", () => {
     const [opts] = MockDataSource.mock.calls.at(-1);
     expect(opts).toMatchObject({
       type: "postgres",
-      host: "localhost",
-      port: 5432,
-      username: "user",
-      password: "pass",
-      database: "testdb",
+      url: "postgres://user:pass@localhost:5432/testdb",
       synchronize: false,
     });
   });
 
-  it("disables SSL when POSTGRES_SSL is not set", async () => {
-    const { MockDataSource } = await load({ POSTGRES_SSL: undefined });
+  it("disables SSL when DATABASE_SSL is not set", async () => {
+    const { MockDataSource } = await load({ DATABASE_SSL: undefined });
     const [opts] = MockDataSource.mock.calls.at(-1);
     expect(opts.ssl).toBe(false);
   });
 
-  it("disables SSL when POSTGRES_SSL=false", async () => {
-    const { MockDataSource } = await load({ POSTGRES_SSL: "false" });
+  it("disables SSL when DATABASE_SSL=false", async () => {
+    const { MockDataSource } = await load({ DATABASE_SSL: "false" });
     const [opts] = MockDataSource.mock.calls.at(-1);
     expect(opts.ssl).toBe(false);
   });
 
-  it("enables SSL with rejectUnauthorized=false when POSTGRES_SSL=true", async () => {
-    const { MockDataSource } = await load({ POSTGRES_SSL: "true" });
+  it("enables SSL with rejectUnauthorized=false when DATABASE_SSL=true", async () => {
+    const { MockDataSource } = await load({ DATABASE_SSL: "true" });
     const [opts] = MockDataSource.mock.calls.at(-1);
     expect(opts.ssl).toEqual({ rejectUnauthorized: false });
   });
 
-  it("throws when a required env var is missing", async () => {
+  it("throws when DATABASE_URL is missing", async () => {
     jest.resetModules();
-    Object.assign(process.env, BASE_ENV);
-    delete process.env.POSTGRES_HOST;
+    delete process.env.DATABASE_URL;
     await expect(import("./data-source")).rejects.toThrow(
-      "Missing required environment variable: POSTGRES_HOST"
+      "Missing required environment variable: DATABASE_URL"
     );
-    process.env.POSTGRES_HOST = BASE_ENV.POSTGRES_HOST;
   });
 });

@@ -7,16 +7,11 @@ jest.mock("pg", () => ({
 }));
 
 const BASE_ENV = {
-  POSTGRES_HOST: "localhost",
-  POSTGRES_PORT: "5432",
-  POSTGRES_USER: "user",
-  POSTGRES_PASSWORD: "pass",
-  POSTGRES_DB: "testdb",
+  DATABASE_URL: "postgres://user:pass@localhost:5432/testdb",
 };
 
 function setEnv(extra: Record<string, string | undefined> = {}) {
-  Object.assign(process.env, BASE_ENV);
-  for (const [k, v] of Object.entries(extra)) {
+  for (const [k, v] of Object.entries({ ...BASE_ENV, ...extra })) {
     if (v === undefined) delete process.env[k];
     else process.env[k] = v;
   }
@@ -30,25 +25,22 @@ beforeEach(() => {
 
 afterEach(() => {
   _resetSharedPool();
-  delete process.env.POSTGRES_SSL;
+  delete process.env.DATABASE_SSL;
+  delete process.env.DATABASE_URL;
 });
 
 describe("getSharedPool", () => {
   it("creates Pool with correct options", () => {
     getSharedPool();
     expect(Pool).toHaveBeenCalledWith({
-      host: "localhost",
-      port: 5432,
-      user: "user",
-      password: "pass",
-      database: "testdb",
+      connectionString: "postgres://user:pass@localhost:5432/testdb",
       max: 10,
       ssl: false,
     });
   });
 
-  it("enables SSL when POSTGRES_SSL=true", () => {
-    setEnv({ POSTGRES_SSL: "true" });
+  it("enables SSL when DATABASE_SSL=true", () => {
+    setEnv({ DATABASE_SSL: "true" });
     getSharedPool();
     expect(Pool).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -64,9 +56,9 @@ describe("getSharedPool", () => {
     expect(Pool).toHaveBeenCalledTimes(1);
   });
 
-  it("throws when a required env var is missing", () => {
-    setEnv({ POSTGRES_HOST: undefined });
-    expect(() => getSharedPool()).toThrow("PgPoolModule: missing required env var POSTGRES_HOST");
+  it("throws when DATABASE_URL is missing", () => {
+    setEnv({ DATABASE_URL: undefined });
+    expect(() => getSharedPool()).toThrow("PgPoolModule: missing required env var DATABASE_URL");
   });
 });
 

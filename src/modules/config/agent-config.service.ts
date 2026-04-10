@@ -131,17 +131,13 @@ export class AgentConfigService {
       return;
     }
 
-    try {
-      const content = fs.readFileSync(configPath, "utf-8");
-      const raw = JSON.parse(content);
-      this.localConfigs = {};
-      for (const [agentId, cfg] of Object.entries(raw) as [string, any][]) {
-        this.localConfigs[agentId] = { ...cfg, agentId };
-      }
-      this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
-    } catch (err: any) {
-      this.logger.error(`Failed to reload agents.json: ${err.message}`);
+    const content = fs.readFileSync(configPath, "utf-8");
+    const raw = JSON.parse(content); // throws SyntaxError on invalid JSON — intentional on initial load
+    this.localConfigs = {};
+    for (const [agentId, cfg] of Object.entries(raw) as [string, any][]) {
+      this.localConfigs[agentId] = { ...cfg, agentId };
     }
+    this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
   }
 
   private watchLocalConfigs(): void {
@@ -153,7 +149,11 @@ export class AgentConfigService {
         if (debounce) clearTimeout(debounce);
         debounce = setTimeout(() => {
           this.logger.log("agents.json changed — reloading…");
-          this.loadLocalConfigs();
+          try {
+            this.loadLocalConfigs();
+          } catch (err: any) {
+            this.logger.error(`Failed to reload agents.json: ${err.message}`);
+          }
         }, 200);
       });
       this.logger.debug("Watching agents.json for changes");
