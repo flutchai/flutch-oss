@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.0-alpha.3
+
+### Changed
+
+- **`DATABASE_URL` replaces five separate `POSTGRES_*` env vars** — `AppDataSource`, `PgPoolModule`, and `DatabaseModule` now all accept a single connection string; simplifies `.env` and managed database setups (Railway, Supabase, Render)
+- **Hot reload `agents.json` without restart** — `AgentConfigService` watches the file with `fs.watch()` and a 200 ms debounce; bad JSON during reload logs an error and keeps the last good config; bad JSON at startup still fails fast
+
+### Added
+
+- `mcp-runtime` service in `docker-compose.yml` with healthcheck; monitoring services (Prometheus, Grafana) moved to `--profile monitoring` so they're opt-in
+- `mcp-servers.example.json` — ready-to-use MCP server config for `sequential-thinking` and `web-search`
+
+### Fixed
+
+- Test suites for `data-source`, `pg-pool.module`, and `agent-config.service` updated to match `DATABASE_URL`-based connection model
+
 ## 0.8.0-alpha.2
 
 ### Changed

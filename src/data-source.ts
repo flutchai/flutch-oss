@@ -18,20 +18,13 @@ import { AdminUser } from "./modules/database/entities/admin-user.entity";
 import { KnowledgeBase } from "./modules/kms/entities/knowledge-base.entity";
 import { Article } from "./modules/kms/entities/article.entity";
 
-function requireEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing required environment variable: ${key}`);
-  return value;
-}
+const url = process.env.DATABASE_URL;
+if (!url) throw new Error("Missing required environment variable: DATABASE_URL");
 
 export const AppDataSource = new DataSource({
   type: "postgres",
-  host: requireEnv("POSTGRES_HOST"),
-  port: parseInt(requireEnv("POSTGRES_PORT"), 10),
-  username: requireEnv("POSTGRES_USER"),
-  password: requireEnv("POSTGRES_PASSWORD"),
-  database: requireEnv("POSTGRES_DB"),
-  ssl: process.env.POSTGRES_SSL === "true" ? { rejectUnauthorized: false } : false,
+  url,
+  ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
   entities: [User, UserIdentity, Thread, Message, AdminUser, KnowledgeBase, Article],
   migrations: ["src/migrations/*.ts"],
   synchronize: false,

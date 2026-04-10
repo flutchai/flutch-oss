@@ -14,25 +14,12 @@ let _pool: Pool | undefined;
  */
 export function getSharedPool(): Pool {
   if (!_pool) {
-    const required = [
-      "POSTGRES_HOST",
-      "POSTGRES_PORT",
-      "POSTGRES_USER",
-      "POSTGRES_PASSWORD",
-      "POSTGRES_DB",
-    ];
-    for (const key of required) {
-      if (!process.env[key]) throw new Error(`PgPoolModule: missing required env var ${key}`);
-    }
-    const ssl = process.env.POSTGRES_SSL === "true" ? { rejectUnauthorized: false } : false;
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) throw new Error("PgPoolModule: missing required env var DATABASE_URL");
     _pool = new Pool({
-      host: process.env.POSTGRES_HOST,
-      port: Number(process.env.POSTGRES_PORT),
-      user: process.env.POSTGRES_USER,
-      password: process.env.POSTGRES_PASSWORD,
-      database: process.env.POSTGRES_DB,
+      connectionString,
+      ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
       max: 10,
-      ssl,
     });
   }
   return _pool;
