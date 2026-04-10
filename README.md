@@ -126,7 +126,8 @@ Any npm package implementing the MCP stdio protocol works. Start from `mcp-serve
 | `POST` | `/stream` | Server-Sent Events streaming |
 | `POST` | `/cancel/:requestId` | Cancel in-flight request |
 | `GET` | `/graph-types` | List registered agent types |
-| `GET` | `/health` | Health check |
+| `GET` | `/registry` | Registered graph types with metadata |
+| `GET` | `/health` | Health check (returns `{ status, timestamp }`) |
 
 ### Request body
 
