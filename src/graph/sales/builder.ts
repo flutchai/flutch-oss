@@ -328,6 +328,34 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     return metadata;
   }
 
+  /**
+   * Retry an async operation up to maxAttempts times with exponential backoff.
+   * Throws the last error if all attempts fail.
+   */
+  private async retryAsync<T>(
+    label: string,
+    fn: () => Promise<T>,
+    maxAttempts = 3,
+    baseDelayMs = 1000
+  ): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastError = err;
+        if (attempt < maxAttempts) {
+          const delay = baseDelayMs * 2 ** (attempt - 1);
+          this.logger.warn(
+            `${label}: attempt ${attempt}/${maxAttempts} failed — retrying in ${delay}ms`
+          );
+          await new Promise(res => setTimeout(res, delay));
+        }
+      }
+    }
+    throw lastError;
+  }
+
   private fireExtraction(
     messages: BaseMessage[],
     qualificationFields: IQualificationField[],
@@ -346,78 +374,77 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
 
     if (Object.keys(schema.shape).length === 0) return;
 
-    (async () => {
-      try {
-        const model = await this.modelInitializer.initializeChatModel({
-          ...extractionModel,
-          temperature: 0,
-        });
+    this.retryAsync("[CRM] extraction", async () => {
+      const model = await this.modelInitializer.initializeChatModel({
+        ...extractionModel,
+        temperature: 0,
+      });
 
-        const structuredModel = (model as any).withStructuredOutput
-          ? (model as any).withStructuredOutput(schema)
-          : model;
+      const structuredModel = (model as any).withStructuredOutput
+        ? (model as any).withStructuredOutput(schema)
+        : model;
 
-        const recentMessages = messages.slice(-2);
-        const conversationText = recentMessages
-          .map(m => `${m._getType()}: ${typeof m.content === "string" ? m.content : ""}`)
-          .join("\n");
+      const recentMessages = messages.slice(-2);
+      const conversationText = recentMessages
+        .map(m => `${m._getType()}: ${typeof m.content === "string" ? m.content : ""}`)
+        .join("\n");
 
-        // Build current contact summary for context
-        const currentValues = Object.entries(filteredContactFields)
-          .map(
-            ([k, v]) =>
-              `  ${k}: ${v == null || v === "" ? "unknown" : typeof v === "object" ? JSON.stringify(v) : v}`
-          )
-          .join("\n");
+      const currentValues = Object.entries(filteredContactFields)
+        .map(
+          ([k, v]) =>
+            `  ${k}: ${v == null || v === "" ? "unknown" : typeof v === "object" ? JSON.stringify(v) : v}`
+        )
+        .join("\n");
 
-        const fieldDescriptions = qualificationFields
-          .filter(
-            f =>
-              !filteredContactFields.hasOwnProperty(f.name) || filteredContactFields[f.name] == null
-          )
-          .map(f => `  ${f.name}: ${f.description}`)
-          .join("\n");
+      const fieldDescriptions = qualificationFields
+        .filter(
+          f =>
+            !filteredContactFields.hasOwnProperty(f.name) || filteredContactFields[f.name] == null
+        )
+        .map(f => `  ${f.name}: ${f.description}`)
+        .join("\n");
 
-        const result = await structuredModel.invoke([
-          new SystemMessage(
-            `You are extracting contact information from a conversation.\n\n` +
-              `Current contact data:\n${currentValues || "  (empty)"}\n\n` +
-              (fieldDescriptions ? `Fields to collect:\n${fieldDescriptions}\n\n` : "") +
-              `Recent conversation:\n${conversationText}\n\n` +
-              `Extract only fields where the user provided NEW or DIFFERENT information compared to current values. ` +
-              `Return null for fields that were not mentioned or already match current values.`
-          ),
-        ]);
+      const result = await structuredModel.invoke([
+        new SystemMessage(
+          `You are extracting contact information from a conversation.\n\n` +
+            `Current contact data:\n${currentValues || "  (empty)"}\n\n` +
+            (fieldDescriptions ? `Fields to collect:\n${fieldDescriptions}\n\n` : "") +
+            `Recent conversation:\n${conversationText}\n\n` +
+            `Extract only fields where the user provided NEW or DIFFERENT information compared to current values. ` +
+            `Return null for fields that were not mentioned or already match current values.`
+        ),
+      ]);
 
-        const extracted: Record<string, any> = {};
-        for (const [key, value] of Object.entries(result ?? {})) {
-          if (value != null && value !== "") {
-            extracted[key] = value;
-          }
+      const extracted: Record<string, any> = {};
+      for (const [key, value] of Object.entries(result ?? {})) {
+        if (value != null && value !== "") {
+          extracted[key] = value;
         }
-
-        if (Object.keys(extracted).length === 0) {
-          this.logger.debug("Extraction: no new fields found");
-          return;
-        }
-
-        this.logger.log(`[CRM] extraction updated fields: ${Object.keys(extracted).join(", ")}`);
-
-        if (crmId) {
-          const toolName = getCrmToolName(provider, "update");
-          const toolConfig =
-            toolConfigs[toolName] ?? getProviderCredentials(provider, toolConfigs, credentials);
-          await this.mcpClient.executeTool(
-            toolName,
-            { id: crmId, ...extracted, ...toolConfig },
-            executionContext
-          );
-          this.logger.log(`[CRM] extraction saved to CRM: ${Object.keys(extracted).join(", ")}`);
-        }
-      } catch (error) {
-        this.logger.warn(`Extraction failed: ${error instanceof Error ? error.message : error}`);
       }
-    })();
+
+      if (Object.keys(extracted).length === 0) {
+        this.logger.debug("Extraction: no new fields found");
+        return;
+      }
+
+      this.logger.log(`[CRM] extraction updated fields: ${Object.keys(extracted).join(", ")}`);
+
+      if (crmId) {
+        const toolName = getCrmToolName(provider, "update");
+        const toolConfig =
+          toolConfigs[toolName] ?? getProviderCredentials(provider, toolConfigs, credentials);
+        await this.mcpClient.executeTool(
+          toolName,
+          { id: crmId, ...extracted, ...toolConfig },
+          executionContext
+        );
+        this.logger.log(`[CRM] extraction saved to CRM: ${Object.keys(extracted).join(", ")}`);
+      }
+    }).catch((err: unknown) =>
+      this.logger.error(
+        `[CRM] extraction failed after 3 attempts — fields lost: ${Object.keys(filteredContactFields).join(", ")} — ${err instanceof Error ? err.message : err}`
+      )
+    );
   }
 
   private fireEnrichment(
@@ -441,12 +468,17 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     // Build a natural language query from contact data for the enrichment agent
     const query = this.buildEnrichmentQuery(contactFields);
 
-    this.mcpClient
-      .executeTool("call_agent", { agentSlug: enrichmentAgentId, query }, executionContext)
+    this.retryAsync(`[CRM] enrichment(${enrichmentAgentId})`, () =>
+      this.mcpClient.executeTool(
+        "call_agent",
+        { agentSlug: enrichmentAgentId, query },
+        executionContext
+      )
+    )
       .then(() => this.logger.log(`Enrichment agent ${enrichmentAgentId} completed`))
-      .catch((err: any) =>
-        this.logger.warn(
-          `Enrichment agent ${enrichmentAgentId} failed: ${err instanceof Error ? err.message : err}`
+      .catch((err: unknown) =>
+        this.logger.error(
+          `[CRM] enrichment agent ${enrichmentAgentId} failed after 3 attempts — ${err instanceof Error ? err.message : err}`
         )
       );
   }

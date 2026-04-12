@@ -133,10 +133,27 @@ export class AgentConfigService {
 
     const content = fs.readFileSync(configPath, "utf-8");
     const raw = JSON.parse(content); // throws SyntaxError on invalid JSON — intentional on initial load
-    this.localConfigs = {};
-    for (const [agentId, cfg] of Object.entries(raw) as [string, any][]) {
-      this.localConfigs[agentId] = { ...cfg, agentId };
+
+    if (typeof raw !== "object" || Array.isArray(raw) || raw === null) {
+      throw new Error("agents.json must be a JSON object mapping agentId → config");
     }
+
+    const errors: string[] = [];
+    const loaded: Record<string, AgentConfig> = {};
+
+    for (const [agentId, cfg] of Object.entries(raw) as [string, any][]) {
+      if (!cfg?.graphType) {
+        errors.push(`  ✗ "${agentId}": missing required field "graphType"`);
+        continue;
+      }
+      loaded[agentId] = { ...cfg, agentId };
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`Invalid agents.json:\n${errors.join("\n")}`);
+    }
+
+    this.localConfigs = loaded;
     this.logger.log(`Loaded ${Object.keys(this.localConfigs).length} agent(s) from agents.json`);
   }
 
