@@ -1,6 +1,6 @@
 {
   "roofing-agent": {
-    "graphType": "flutch.simple",
+    "graphType": "flutch.simple::1.0.0",
     "graphSettings": {
       "model": "gpt-4o-mini",
       "systemPrompt": "You are a roofing expert assistant. Help customers with roofing questions, material selection, and cost estimation. Be concise and practical."
@@ -13,7 +13,7 @@
   },
 
   "sales-agent": {
-    "graphType": "flutch.sales",
+    "graphType": "flutch.sales::2.0.0",
     "graphSettings": {
       "conversation": {
         "model": {
