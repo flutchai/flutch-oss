@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.0-alpha.4
+
+### Added
+
+- **Company data loading on contact sync** — `loadCompanyData()` fetches linked company record from CRM when `companyId` is present; result stored in `contact.company`; works for Twenty via new company tool names
+- `getCompanyToolName()` in `crm.constants.ts` — resolves MCP tool names for company operations (`get`, `find`, `create`, `update`, `findOrCreate`)
+- Twenty company tool names in `CRM_TOOL_MAP`: `twenty_get_company`, `twenty_list_companies`, `twenty_create_company`, `twenty_update_company`, `twenty_find_or_create_company`
+
+### Changed
+
+- **Enrichment fires every turn** when `crmId` is present (previously only on first turn); `fireEnrichment` now accepts `contactData` directly instead of reading from state
+- **`buildEnrichmentQuery`** includes last 2 human↔AI message exchanges alongside contact fields for richer enrichment context
+- **Extraction removed** — `fireExtraction`, `buildExtractionSchema`, and `buildContactExtractionSchema` removed from `SalesGraphBuilder`; CRM field extraction is now the responsibility of the enrichment agent
+
 ## 0.8.0-alpha.3
 
 ### Changed

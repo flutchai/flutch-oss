@@ -30,6 +30,7 @@ import {
 import {
   filterSystemFields,
   getCrmToolName,
+  getCompanyToolName,
   parseMcpResult,
   buildCreateArgs,
   buildLookupArgs,
@@ -104,39 +105,11 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
       }
     }
 
-    // ── 2. Fire extraction (async, fire-and-forget) ──
-    const qualificationFields = qualification?.qualificationFields ?? [];
+    // ── 2. Fire enrichment agent (async, fire-and-forget, every message with crmId) ──
     const contactData = updates.contactData ?? state.contactData;
 
-    if (
-      state.messages.length > 1 &&
-      qualification?.extractionModel &&
-      contactData?.crmId &&
-      activeCrm &&
-      this.mcpClient
-    ) {
-      const extractionContext = config?.configurable?.context;
-      const extractionExecCtx: Record<string, any> = {};
-      if (extractionContext?.userId) extractionExecCtx.userId = extractionContext.userId;
-      if (extractionContext?.agentId) extractionExecCtx.agentId = extractionContext.agentId;
-      if (extractionContext?.companyId) extractionExecCtx.companyId = extractionContext.companyId;
-
-      this.fireExtraction(
-        state.messages,
-        qualificationFields,
-        qualification.extractionModel,
-        activeCrm.provider,
-        activeCrm.config._credentials,
-        toolConfigs,
-        contactData,
-        extractionExecCtx
-      );
-    }
-
-    // ── 3. Enrichment (first turn only) ──
-    if (state.enrichmentStatus === null && crmConfig?.enrichmentAgent && this.mcpClient) {
-      this.fireEnrichment(crmConfig.enrichmentAgent, state, config);
-      updates.enrichmentStatus = "requested";
+    if (crmConfig?.enrichmentAgent && this.mcpClient && contactData?.crmId) {
+      this.fireEnrichment(crmConfig.enrichmentAgent, state, config, contactData);
     }
 
     return updates;
@@ -254,10 +227,62 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
       if (!raw) return null;
 
       const filtered = filterSystemFields(raw);
-      return { crmId, ...filtered };
+      const contact: IContactData = { crmId, ...filtered };
+
+      // Enrich with full company data if linked
+      const companyId = raw.companyId ?? raw.company?.id;
+      if (companyId) {
+        const company = await this.loadCompanyData(
+          companyId,
+          provider,
+          credentials,
+          toolConfigs,
+          executionContext
+        );
+        if (company) contact.company = company;
+      }
+
+      return contact;
     } catch (error) {
       this.logger.warn(
         `CRM refresh failed for ${crmId}: ${error instanceof Error ? error.message : error}`
+      );
+      return null;
+    }
+  }
+
+  private async loadCompanyData(
+    companyId: string,
+    provider: string,
+    credentials: string | Record<string, any> | undefined,
+    toolConfigs: Record<string, any>,
+    executionContext?: Record<string, any>
+  ): Promise<Record<string, any> | null> {
+    const toolName = getCompanyToolName(provider, "get");
+    if (!toolName) return null;
+
+    try {
+      const toolConfig =
+        toolConfigs[toolName] ?? getProviderCredentials(provider, toolConfigs, credentials);
+
+      this.logger.debug(`Loading company ${companyId} via ${toolName}`);
+
+      const result = await this.mcpClient.executeTool(
+        toolName,
+        { id: companyId, ...toolConfig },
+        executionContext
+      );
+
+      if (!result.success || !result.result) return null;
+
+      const parsed = parseMcpResult(result.result);
+      const raw = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (!raw) return null;
+
+      return filterSystemFields(raw);
+    } catch (error) {
+      this.logger.warn(
+        `Company load failed for ${companyId}: ${error instanceof Error ? error.message : error}`
       );
       return null;
     }
@@ -297,7 +322,19 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
 
         if (raw?.id) {
           this.logger.log(`Contact found ${raw.id} in ${provider}`);
-          return { crmId: raw.id, ...filterSystemFields(raw) };
+          const contact: IContactData = { crmId: raw.id, ...filterSystemFields(raw) };
+          const companyId = raw.companyId ?? raw.company?.id;
+          if (companyId) {
+            const company = await this.loadCompanyData(
+              companyId,
+              provider,
+              creds,
+              toolConfigs,
+              executionContext
+            );
+            if (company) contact.company = company;
+          }
+          return contact;
         }
       }
     }
@@ -320,6 +357,7 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
 
       if (raw?.id) {
         this.logger.log(`Contact created ${raw.id} in ${provider}`);
+        // New contact won't have a company yet — no company load needed
         return { crmId: raw.id, ...filterSystemFields(raw) };
       }
     }
@@ -356,117 +394,22 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
     throw lastError;
   }
 
-  private fireExtraction(
-    messages: BaseMessage[],
-    qualificationFields: IQualificationField[],
-    extractionModel: ModelConfig,
-    provider: string,
-    credentials: string | Record<string, any> | undefined,
-    toolConfigs: Record<string, any>,
-    contactData: IContactData,
-    executionContext?: Record<string, any>
-  ): void {
-    // Build schema: qualificationFields + any contact fields already loaded from CRM
-    const { crmId, ...contactFields } = contactData ?? {};
-    const filteredContactFields = filterSystemFields(contactFields);
-
-    const schema = buildContactExtractionSchema(qualificationFields, filteredContactFields);
-
-    if (Object.keys(schema.shape).length === 0) return;
-
-    this.retryAsync("[CRM] extraction", async () => {
-      const model = await this.modelInitializer.initializeChatModel({
-        ...extractionModel,
-        temperature: 0,
-      });
-
-      const structuredModel = (model as any).withStructuredOutput
-        ? (model as any).withStructuredOutput(schema)
-        : model;
-
-      const recentMessages = messages.slice(-2);
-      const conversationText = recentMessages
-        .map(m => `${m._getType()}: ${typeof m.content === "string" ? m.content : ""}`)
-        .join("\n");
-
-      const currentValues = Object.entries(filteredContactFields)
-        .map(
-          ([k, v]) =>
-            `  ${k}: ${v == null || v === "" ? "unknown" : typeof v === "object" ? JSON.stringify(v) : v}`
-        )
-        .join("\n");
-
-      const fieldDescriptions = qualificationFields
-        .filter(
-          f =>
-            !filteredContactFields.hasOwnProperty(f.name) || filteredContactFields[f.name] == null
-        )
-        .map(f => `  ${f.name}: ${f.description}`)
-        .join("\n");
-
-      const result = await structuredModel.invoke([
-        new SystemMessage(
-          `You are extracting contact information from a conversation.\n\n` +
-            `Current contact data:\n${currentValues || "  (empty)"}\n\n` +
-            (fieldDescriptions ? `Fields to collect:\n${fieldDescriptions}\n\n` : "") +
-            `Recent conversation:\n${conversationText}\n\n` +
-            `Extract only fields where the user provided NEW or DIFFERENT information compared to current values. ` +
-            `Return null for fields that were not mentioned or already match current values.`
-        ),
-      ]);
-
-      const extracted: Record<string, any> = {};
-      for (const [key, value] of Object.entries(result ?? {})) {
-        if (value != null && value !== "") {
-          extracted[key] = value;
-        }
-      }
-
-      if (Object.keys(extracted).length === 0) {
-        this.logger.debug("Extraction: no new fields found");
-        return;
-      }
-
-      this.logger.log(`[CRM] extraction updated fields: ${Object.keys(extracted).join(", ")}`);
-
-      if (crmId) {
-        const toolName = getCrmToolName(provider, "update");
-        const toolConfig =
-          toolConfigs[toolName] ?? getProviderCredentials(provider, toolConfigs, credentials);
-        await this.mcpClient.executeTool(
-          toolName,
-          { id: crmId, ...extracted, ...toolConfig },
-          executionContext
-        );
-        this.logger.log(`[CRM] extraction saved to CRM: ${Object.keys(extracted).join(", ")}`);
-      }
-    }).catch((err: unknown) =>
-      this.logger.error(
-        `[CRM] extraction failed after 3 attempts — fields lost: ${Object.keys(filteredContactFields).join(", ")} — ${err instanceof Error ? err.message : err}`
-      )
-    );
-  }
-
   private fireEnrichment(
     enrichmentAgentId: string,
     state: typeof SalesState.State,
-    config: SalesRunnableConfig
+    config: SalesRunnableConfig,
+    contactData: IContactData
   ): void {
-    const contactData = state.contactData ?? {};
     const context = config?.configurable?.context;
 
     this.logger.log(`Firing enrichment agent ${enrichmentAgentId} async`);
 
-    const { crmId: _crmId, ...contactFields } = contactData;
-
-    // Build execution context — call_agent requires userId
     const executionContext: Record<string, any> = {};
     if (context?.userId) executionContext.userId = context.userId;
     if (context?.agentId) executionContext.agentId = context.agentId;
     if (context?.companyId) executionContext.companyId = context.companyId;
 
-    // Build a natural language query from contact data for the enrichment agent
-    const query = this.buildEnrichmentQuery(contactFields);
+    const query = this.buildEnrichmentQuery(contactData, state.messages);
 
     this.retryAsync(`[CRM] enrichment(${enrichmentAgentId})`, () =>
       this.mcpClient.executeTool(
@@ -483,15 +426,31 @@ export class SalesGraphBuilder extends AbstractGraphBuilder<"2.0.0"> {
       );
   }
 
-  private buildEnrichmentQuery(contactFields: Record<string, any>): string {
-    const fields = Object.entries(contactFields)
-      .filter(([, v]) => v != null && v !== "")
-      .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
-      .join(", ");
+  private buildEnrichmentQuery(contactData: IContactData, messages: BaseMessage[]): string {
+    const { crmId, ...fields } = contactData ?? {};
 
-    return fields
-      ? `Enrich this contact and update the CRM record. Known data: ${fields}`
-      : "Enrich this contact and update the CRM record.";
+    const contactLines = Object.entries(fields)
+      .filter(([, v]) => v != null && v !== "")
+      .map(([k, v]) => `  ${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+      .join("\n");
+
+    // Last 2 human↔ai exchanges — filter tool/system messages first, then take last 4
+    const recentLines = messages
+      .filter(
+        m =>
+          (m instanceof HumanMessage || m instanceof AIMessage) &&
+          !(m as AIMessage).tool_calls?.length
+      )
+      .slice(-2)
+      .map(m => `  ${m._getType()}: ${typeof m.content === "string" ? m.content : ""}`)
+      .join("\n");
+
+    const parts: string[] = [];
+    if (crmId) parts.push(`crmId: ${crmId}`);
+    if (contactLines) parts.push(`Contact data:\n${contactLines}`);
+    if (recentLines) parts.push(`Recent conversation:\n${recentLines}`);
+
+    return parts.join("\n\n");
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -871,38 +830,6 @@ function buildPrompt(
   );
 
   return parts.length > 0 ? parts.join("\n\n") : undefined;
-}
-
-/** Build Zod extraction schema from qualification fields. */
-function buildExtractionSchema(fields: IQualificationField[]) {
-  const entries: Record<string, z.ZodTypeAny> = {};
-  for (const field of fields) {
-    entries[field.name] = z.string().nullable().optional().describe(field.description);
-  }
-  return z.object(entries);
-}
-
-/**
- * Build extraction schema combining qualificationFields + CRM contact fields.
- * qualificationFields provide descriptions; contact fields are added as plain string slots.
- */
-function buildContactExtractionSchema(
-  qualificationFields: IQualificationField[],
-  contactFields: Record<string, any>
-) {
-  const entries: Record<string, z.ZodTypeAny> = {};
-  // qualificationFields first (with descriptions)
-  for (const field of qualificationFields) {
-    entries[field.name] = z.string().nullable().optional().describe(field.description);
-  }
-  // Add any CRM fields not already covered by qualificationFields
-  const qualNames = new Set(qualificationFields.map(f => f.name));
-  for (const key of Object.keys(contactFields)) {
-    if (!qualNames.has(key) && typeof contactFields[key] !== "object") {
-      entries[key] = z.string().nullable().optional();
-    }
-  }
-  return z.object(entries);
 }
 
 function extractLookupValue(state: typeof SalesState.State, lookupBy: string): string | undefined {

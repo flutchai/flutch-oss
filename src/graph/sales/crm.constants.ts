@@ -62,6 +62,12 @@ const CRM_TOOL_MAP: Record<string, Record<string, string>> = {
     create: "twenty_create_person",
     update: "twenty_update_person",
     upsert: "twenty_upsert_person",
+    // Company operations
+    getCompany: "twenty_get_company",
+    findCompany: "twenty_list_companies",
+    createCompany: "twenty_create_company",
+    updateCompany: "twenty_update_company",
+    findOrCreateCompany: "twenty_find_or_create_company",
   },
   zoho: {
     find: "zoho_search_contacts",
@@ -91,6 +97,16 @@ export function getCrmToolName(
   // If the action is not mapped (e.g. Twenty has no upsert), return null
   if (CRM_TOOL_MAP[provider] && !CRM_TOOL_MAP[provider][action]) return null;
   return `${provider}_${action}_contact`;
+}
+
+/**
+ * Get the CRM MCP tool name for company operations.
+ */
+export function getCompanyToolName(
+  provider: string,
+  action: "get" | "find" | "create" | "update" | "findOrCreate"
+): string | null {
+  return CRM_TOOL_MAP[provider]?.[`${action}Company`] ?? null;
 }
 
 /**
