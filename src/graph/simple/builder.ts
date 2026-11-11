@@ -5,6 +5,7 @@ import {
   McpRuntimeHttpClient,
   IGraphAttachment,
   executeToolWithAttachments,
+  dispatchAttachments,
 } from "@flutchai/flutch-sdk";
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 import { AIMessage, BaseMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
@@ -172,7 +173,7 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
               logger: this.logger,
             });
 
-            toolMessages.push(result.toolMessage);
+            toolMessages.push(await this.liftAttachments(result.toolMessage, config));
             if (result.attachment) {
               newAttachments[result.attachment.key] = result.attachment.value;
             }
@@ -223,4 +224,51 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
 
     return workflow.compile({ checkpointer: this.checkpointer ?? undefined });
   }
+
+  /**
+   * Move a tool's `__ui_attachments` out of its result and onto the message.
+   *
+   * Some tools produce something the channel should render — a button back to
+   * what they just created, for instance. The model has no use for that shape
+   * and every reason not to see it: it is plumbing, and anything in a tool
+   * result is text a model may decide to repeat. So it is dispatched to the
+   * outgoing message and stripped from what goes back into the conversation.
+   *
+   * Anything unexpected here is ignored on purpose. A malformed attachment is
+   * worth losing a button over, never worth failing a tool call that already
+   * did its work.
+   */
+  private async liftAttachments(
+    toolMessage: ToolMessage,
+    config?: any
+  ): Promise<ToolMessage> {
+    const raw = toolMessage.content;
+    if (typeof raw !== "string" || !raw.includes("__ui_attachments")) {
+      return toolMessage;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      const attachments = parsed?.__ui_attachments;
+      if (!Array.isArray(attachments) || attachments.length === 0) {
+        return toolMessage;
+      }
+
+      await dispatchAttachments(attachments, config);
+      this.logger.log(
+        `Lifted ${attachments.length} attachment(s) from ${toolMessage.name}`
+      );
+
+      delete parsed.__ui_attachments;
+      return new ToolMessage({
+        content: JSON.stringify(parsed),
+        tool_call_id: toolMessage.tool_call_id,
+        name: toolMessage.name,
+      });
+    } catch (error) {
+      this.logger.warn(`Could not lift attachments: ${error}`);
+      return toolMessage;
+    }
+  }
+
 }
