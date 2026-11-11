@@ -3,6 +3,7 @@ import {
   AbstractGraphBuilder,
   IGraphRequestPayload,
   McpRuntimeHttpClient,
+  McpConverter,
   IGraphAttachment,
   executeToolWithAttachments,
 } from "@flutchai/flutch-sdk";
@@ -93,8 +94,10 @@ export class SimpleGraphBuilder extends AbstractGraphBuilder<"1.0.0"> {
         const filteredTools = mcpTools.filter((t: any) => enabledToolNames.has(t.name));
 
         if (filteredTools.length > 0) {
-          boundModel = (model as any).bindTools(filteredTools);
-          this.logger.debug(`Bound ${filteredTools.length} tools to model`);
+          const converter = new McpConverter();
+          const langchainTools = await converter.convertTools(filteredTools);
+          boundModel = (model as any).bindTools(langchainTools);
+          this.logger.debug(`Bound ${langchainTools.length} tools to model`);
         }
       } catch (error) {
         this.logger.warn(`Failed to bind tools: ${error.message}`);
